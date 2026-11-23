@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, getComponentTotal } from "@/lib/finance";
 import { logGroupNotification } from "@/lib/notify";
+import { useLockBodyScroll } from "@/lib/useLockBodyScroll";
 import type {
   ComponentItem,
   DeliveryStatus,
@@ -123,6 +124,8 @@ export default function ComponentsTab({
   const [bNotes, setBNotes] = useState("");
 
   const [modalBusy, setModalBusy] = useState(false);
+
+  useLockBodyScroll(showCompModal || showBundleModal);
 
   // Existing categories sorted numerically + next auto-increment number
   const { existingCategories, nextCategoryNumber } = useMemo(() => {
@@ -890,8 +893,8 @@ export default function ComponentsTab({
 
       {/* Add / Edit Component Modal */}
       {showCompModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-zinc-800 bg-[#111115] p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overscroll-contain">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl border border-slate-800 bg-[#121621] p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">
                 {editingComp ? "Edit Component" : "Add Component"}
@@ -1080,8 +1083,8 @@ export default function ComponentsTab({
 
       {/* Create / Edit Order Bundle Modal */}
       {showBundleModal && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-zinc-800 bg-[#111115] p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overscroll-contain">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl border border-slate-800 bg-[#121621] p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-white">

@@ -73,19 +73,32 @@ body {
 
 * {
   border-color: var(--border);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.24) transparent;
 }
 
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #0b0d12;
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #273043;
+  background: rgba(148, 163, 184, 0.22);
   border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+  transition: background 0.15s ease;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a4660;
+  background: rgba(16, 185, 129, 0.5);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }

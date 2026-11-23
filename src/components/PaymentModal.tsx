@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/finance";
 import { logGroupNotification } from "@/lib/notify";
+import { useLockBodyScroll } from "@/lib/useLockBodyScroll";
 import type { GroupMember, PaymentMethod } from "@/lib/types";
 import SelectDropdown, { type DropdownOption } from "./SelectDropdown";
 import DatePicker from "./DatePicker";
@@ -35,6 +36,7 @@ export default function PaymentModal({
   onSuccess,
 }: PaymentModalProps) {
   const supabase = createClient();
+  useLockBodyScroll(true);
 
   const [memberId, setMemberId] = useState(
     canEdit ? members[0]?.id ?? "" : myMember?.id ?? ""
@@ -119,8 +121,8 @@ export default function PaymentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-[#111115] p-6 space-y-5 shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overscroll-contain">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl border border-slate-800 bg-[#121621] p-6 space-y-5 shadow-2xl">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-white">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/finance";
+import { useLockBodyScroll } from "@/lib/useLockBodyScroll";
 import type { Group, GroupMode, MemberRole } from "@/lib/types";
 import SelectDropdown from "./SelectDropdown";
 import DatePicker from "./DatePicker";
@@ -82,6 +83,8 @@ export default function GroupsDashboard({
   const [inviteCode, setInviteCode] = useState("");
   const [preview, setPreview] = useState<GroupPreview | null>(null);
   const [selectedSeatId, setSelectedSeatId] = useState<string>("");
+
+  useLockBodyScroll(showCreate || showJoin || !!deletingCard);
 
   const projectGroups = useMemo(
     () => initialGroups.filter((g) => g.group.mode === "project"),
