@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/finance";
 import { logGroupNotification } from "@/lib/notify";
 import type { Contribution, GroupMember, MemberRole } from "@/lib/types";
 import SelectDropdown, { type DropdownOption } from "./SelectDropdown";
+import ConfirmModal from "./ConfirmModal";
 import {
   CheckCircle2,
   XCircle,
@@ -18,7 +19,6 @@ import {
   Check,
   Trash2,
   AlertTriangle,
-  Loader2,
 } from "lucide-react";
 
 interface HistoryAndMembersTabProps {
@@ -77,16 +77,20 @@ export default function HistoryAndMembersTab({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingGroup, setDeletingGroup] = useState(false);
+  const [deleteGroupError, setDeleteGroupError] = useState<string | null>(null);
+  const [confirmDeletePayment, setConfirmDeletePayment] = useState<Contribution | null>(null);
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState<GroupMember | null>(null);
 
   async function handleDeleteGroup() {
     setDeletingGroup(true);
+    setDeleteGroupError(null);
     const { error } = await supabase.from("groups").delete().eq("id", groupId);
     if (!error) {
       router.push("/");
       router.refresh();
     } else {
       setDeletingGroup(false);
-      alert(error.message);
+      setDeleteGroupError(error.message);
     }
   }
 
@@ -140,8 +144,9 @@ export default function HistoryAndMembersTab({
     onRefresh();
   }
 
-  async function handleDeleteContribution(p: Contribution) {
-    if (!confirm("Delete this payment entry?")) return;
+  async function executeDeleteContribution() {
+    if (!confirmDeletePayment) return;
+    const p = confirmDeletePayment;
     setBusyId(p.id);
     const memName = memberMap.get(p.member_id)?.display_name ?? "Member";
     await supabase.from("contributions").delete().eq("id", p.id);
@@ -153,6 +158,7 @@ export default function HistoryAndMembersTab({
       message: `${actorName} deleted a ${formatCurrency(p.amount, currency)} payment entry for ${memName}`,
     });
     setBusyId(null);
+    setConfirmDeletePayment(null);
     onRefresh();
   }
 
@@ -192,8 +198,8 @@ export default function HistoryAndMembersTab({
       text: res.linked
         ? `Added ${res.display_name} — automatically linked to their existing Ambag account!`
         : res.email
-        ? `Added ${res.display_name} — will auto-link when ${res.email} signs in.`
-        : `Added ${res.display_name} as an unclaimed seat.`,
+          ? `Added ${res.display_name} — will auto-link when ${res.email} signs in.`
+          : `Added ${res.display_name} as an unclaimed seat.`,
     });
 
     setNewMemberName("");
@@ -218,9 +224,9 @@ export default function HistoryAndMembersTab({
     onRefresh();
   }
 
-  async function handleRemoveMember(member: GroupMember) {
-    if (!isLeader || member.role === "leader") return;
-    if (!confirm(`Remove ${member.display_name} from this group?`)) return;
+  async function executeRemoveMember() {
+    if (!isLeader || !confirmRemoveMember || confirmRemoveMember.role === "leader") return;
+    const member = confirmRemoveMember;
     setBusyId(member.id);
     await supabase.from("group_members").delete().eq("id", member.id);
     await logGroupNotification(supabase, {
@@ -231,6 +237,7 @@ export default function HistoryAndMembersTab({
       message: `${actorName} removed ${member.display_name} from the group`,
     });
     setBusyId(null);
+    setConfirmRemoveMember(null);
     onRefresh();
   }
 
@@ -401,9 +408,10 @@ export default function HistoryAndMembersTab({
                       {canEdit && (
                         <td className="py-3 px-4 text-right">
                           <button
-                            onClick={() => handleDeleteContribution(p)}
+                            onClick={() => setConfirmDeletePayment(p)}
                             disabled={busyId === p.id}
-                            className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 cursor-pointer"
+                            title="Delete payment entry"
+                            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-rose-400 cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -488,7 +496,7 @@ export default function HistoryAndMembersTab({
                             className="w-24"
                           />
                           <button
-                            onClick={() => handleRemoveMember(m)}
+                            onClick={() => setConfirmRemoveMember(m)}
                             disabled={busyId === m.id}
                             title="Remove member"
                             className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-rose-400 cursor-pointer"
@@ -544,11 +552,10 @@ export default function HistoryAndMembersTab({
                   </div>
                   {addMemberFeedback && (
                     <p
-                      className={`text-[11px] leading-snug ${
-                        addMemberFeedback.type === "error"
-                          ? "text-rose-400"
-                          : "text-emerald-300"
-                      }`}
+                      className={`text-[11px] leading-snug ${addMemberFeedback.type === "error"
+                        ? "text-rose-400"
+                        : "text-emerald-300"
+                        }`}
                     >
                       {addMemberFeedback.text}
                     </p>
@@ -569,38 +576,78 @@ export default function HistoryAndMembersTab({
               Permanently delete <strong className="text-slate-200">{groupName}</strong> and all associated{" "}
               {isSavings ? "deposit records" : "components, bundles, and payment records"}.
             </p>
-            {!showDeleteConfirm ? (
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs font-semibold text-rose-300 transition cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete {isSavings ? "Savings Goal" : "Project Group"}
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={deletingGroup}
-                  onClick={handleDeleteGroup}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
-                >
-                  {deletingGroup && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Confirm Delete
-                </button>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteGroupError(null);
+                setShowDeleteConfirm(true);
+              }}
+              className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs font-semibold text-rose-300 transition cursor-pointer"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete {isSavings ? "Savings Goal" : "Project Group"}
+            </button>
           </div>
         )}
       </div>
+
+      {/* Custom Remove Payment Modal */}
+      <ConfirmModal
+        open={!!confirmDeletePayment}
+        title={isSavings ? "Delete Deposit?" : "Delete Payment Entry?"}
+        description={
+          <>
+            Remove{" "}
+            <strong className="num text-white">
+              {confirmDeletePayment ? formatCurrency(confirmDeletePayment.amount, currency) : ""}
+            </strong>{" "}
+            ({confirmDeletePayment?.method}) for{" "}
+            <strong className="text-white">
+              {confirmDeletePayment
+                ? memberMap.get(confirmDeletePayment.member_id)?.display_name ?? "Member"
+                : ""}
+            </strong>
+            ? Balances will recalculate immediately.
+          </>
+        }
+        confirmLabel="Delete Entry"
+        loading={!!confirmDeletePayment && busyId === confirmDeletePayment.id}
+        onCancel={() => setConfirmDeletePayment(null)}
+        onConfirm={executeDeleteContribution}
+      />
+
+      {/* Custom Remove Member Modal */}
+      <ConfirmModal
+        open={!!confirmRemoveMember}
+        title="Remove Member?"
+        description={
+          <>
+            Remove <strong className="text-white">{confirmRemoveMember?.display_name}</strong> from{" "}
+            <strong className="text-white">{groupName}</strong>? Their access and associated payment entries in this group will be removed.
+          </>
+        }
+        confirmLabel="Remove Member"
+        loading={!!confirmRemoveMember && busyId === confirmRemoveMember.id}
+        onCancel={() => setConfirmRemoveMember(null)}
+        onConfirm={executeRemoveMember}
+      />
+
+      {/* Custom Delete Group / Savings Goal Modal */}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title={`Delete ${isSavings ? "Savings Goal" : "Project Group"}?`}
+        description={
+          <>
+            This will permanently delete <strong className="text-white">{groupName}</strong> along with all{" "}
+            {isSavings ? "deposits" : "components, order bundles, and payment history"}. This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete Permanently"
+        loading={deletingGroup}
+        error={deleteGroupError}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteGroup}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { useLockBodyScroll } from "@/lib/useLockBodyScroll";
 import type { Group, GroupMode, MemberRole } from "@/lib/types";
 import SelectDropdown from "./SelectDropdown";
 import DatePicker from "./DatePicker";
+import ConfirmModal from "./ConfirmModal";
 import {
   Plus,
   Users,
@@ -863,44 +864,24 @@ export default function GroupsDashboard({
       )}
 
       {/* Delete Confirmation Modal */}
-      {deletingCard && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-rose-500/30 bg-[#121621] p-6 space-y-4 shadow-2xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-base font-semibold text-white">
-                  Delete {deletingCard.group.mode === "savings" ? "Savings Goal" : "Project Group"}?
-                </h2>
-                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  This will permanently delete <strong className="text-white">{deletingCard.group.name}</strong> along with all its components, order bundles, and payment history. This action cannot be undone.
-                </p>
-              </div>
-              <button onClick={() => setDeletingCard(null)} className="text-slate-400 hover:text-white cursor-pointer">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            {error && <p className="text-xs text-rose-400">{error}</p>}
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setDeletingCard(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleConfirmDelete}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
-              >
-                {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Delete Permanently
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={!!deletingCard}
+        title={`Delete ${deletingCard?.group.mode === "savings" ? "Savings Goal" : "Project Group"}?`}
+        description={
+          <>
+            This will permanently delete <strong className="text-white">{deletingCard?.group.name}</strong> along with all its{" "}
+            {deletingCard?.group.mode === "savings"
+              ? "deposit records"
+              : "components, order bundles, and payment history"}
+            . This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete Permanently"
+        loading={busy}
+        error={error}
+        onCancel={() => setDeletingCard(null)}
+        onConfirm={handleConfirmDelete}
+      />
 
       {/* Join Project Modal */}
       {showJoin && (

@@ -13,6 +13,7 @@ import type {
   PaymentStatus,
 } from "@/lib/types";
 import SelectDropdown, { type DropdownOption } from "./SelectDropdown";
+import ConfirmModal from "./ConfirmModal";
 import {
   Plus,
   Package,
@@ -124,6 +125,8 @@ export default function ComponentsTab({
   const [bNotes, setBNotes] = useState("");
 
   const [modalBusy, setModalBusy] = useState(false);
+  const [confirmDeleteComp, setConfirmDeleteComp] = useState<ComponentItem | null>(null);
+  const [confirmUnbundle, setConfirmUnbundle] = useState<OrderBundle | null>(null);
 
   useLockBodyScroll(showCompModal || showBundleModal);
 
@@ -354,9 +357,9 @@ export default function ComponentsTab({
     onRefresh();
   }
 
-  async function deleteComponent(c: ComponentItem) {
-    if (!canEdit) return;
-    if (!confirm(`Delete "${c.name}"?`)) return;
+  async function executeDeleteComponent() {
+    if (!canEdit || !confirmDeleteComp) return;
+    const c = confirmDeleteComp;
     setBusyId(c.id);
     await supabase.from("components").delete().eq("id", c.id);
     await logGroupNotification(supabase, {
@@ -367,6 +370,7 @@ export default function ComponentsTab({
       message: `${actorName} removed component "${c.name}"`,
     });
     setBusyId(null);
+    setConfirmDeleteComp(null);
     onRefresh();
   }
 
@@ -493,9 +497,9 @@ export default function ComponentsTab({
     onRefresh();
   }
 
-  async function unbundleAll(b: OrderBundle) {
-    if (!canEdit) return;
-    if (!confirm(`Unbundle "${b.title}" and delete the bundle wrapper?`)) return;
+  async function executeUnbundleAll() {
+    if (!canEdit || !confirmUnbundle) return;
+    const b = confirmUnbundle;
     setBusyId(b.id);
     await supabase.from("components").update({ bundle_id: null }).eq("bundle_id", b.id);
     await supabase.from("order_bundles").delete().eq("id", b.id);
@@ -507,6 +511,7 @@ export default function ComponentsTab({
       message: `${actorName} unbundled "${b.title}"`,
     });
     setBusyId(null);
+    setConfirmUnbundle(null);
     onRefresh();
   }
 
@@ -715,7 +720,7 @@ export default function ComponentsTab({
                             <Edit3 className="h-3.5 w-3.5" />
                           </button>
                           <button
-                            onClick={() => unbundleAll(bundle)}
+                            onClick={() => setConfirmUnbundle(bundle)}
                             disabled={busyId === bundle.id}
                             title="Unbundle items"
                             className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-rose-400 cursor-pointer"
@@ -934,7 +939,7 @@ export default function ComponentsTab({
                                         <Edit3 className="h-3.5 w-3.5" />
                                       </button>
                                       <button
-                                        onClick={() => deleteComponent(c)}
+                                        onClick={() => setConfirmDeleteComp(c)}
                                         title="Delete component"
                                         className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-rose-400 cursor-pointer"
                                       >
@@ -1311,6 +1316,38 @@ export default function ComponentsTab({
           </div>
         </div>
       )}
+
+      {/* Custom Remove Component Modal */}
+      <ConfirmModal
+        open={!!confirmDeleteComp}
+        title="Remove Component?"
+        description={
+          <>
+            Are you sure you want to permanently remove{" "}
+            <strong className="text-white">{confirmDeleteComp?.name}</strong> from this project?
+          </>
+        }
+        confirmLabel="Remove Component"
+        loading={!!confirmDeleteComp && busyId === confirmDeleteComp.id}
+        onCancel={() => setConfirmDeleteComp(null)}
+        onConfirm={executeDeleteComponent}
+      />
+
+      {/* Custom Unbundle Modal */}
+      <ConfirmModal
+        open={!!confirmUnbundle}
+        title="Unbundle Order?"
+        variant="warning"
+        description={
+          <>
+            Unbundle <strong className="text-white">{confirmUnbundle?.title}</strong>? The bundle wrapper will be deleted and all items inside will return to standalone components.
+          </>
+        }
+        confirmLabel="Unbundle Items"
+        loading={!!confirmUnbundle && busyId === confirmUnbundle.id}
+        onCancel={() => setConfirmUnbundle(null)}
+        onConfirm={executeUnbundleAll}
+      />
     </div>
   );
 }
