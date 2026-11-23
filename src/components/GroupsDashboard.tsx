@@ -174,18 +174,18 @@ export default function GroupsDashboard({
 
       // Only Project groups support teammates; Savings is strictly personal
       if (mode === "project") {
-        const parsedNames = extraMembers
+        const parsedEntries = extraMembers
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean);
-        if (parsedNames.length > 0) {
-          await supabase.from("group_members").insert(
-            parsedNames.map((display_name) => ({
-              group_id: group.id,
-              display_name,
-              role: "viewer",
-            }))
-          );
+        for (const entry of parsedEntries) {
+          const isEmail = entry.includes("@");
+          await supabase.rpc("add_group_member", {
+            p_group_id: group.id,
+            p_display_name: isEmail ? null : entry,
+            p_email: isEmail ? entry : null,
+            p_role: "viewer",
+          });
         }
       }
 
@@ -823,12 +823,12 @@ export default function GroupsDashboard({
               ) : (
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Teammates to Pre-Add (optional, comma-separated)
+                    Teammates to Add (optional, comma-separated names or emails)
                   </label>
                   <input
                     value={extraMembers}
                     onChange={(e) => setExtraMembers(e.target.value)}
-                    placeholder="e.g. Leonard, Michael (they can claim their seats later)"
+                    placeholder="e.g. Leonard, michael@gmail.com"
                     className="w-full px-3 py-2 rounded-xl bg-[#161a24] border border-slate-700/70 text-sm text-white focus:outline-none focus:border-emerald-500"
                   />
                 </div>

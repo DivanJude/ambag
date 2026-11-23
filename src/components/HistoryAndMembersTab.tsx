@@ -19,7 +19,6 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
-  Link2,
 } from "lucide-react";
 
 interface HistoryAndMembersTabProps {
@@ -69,8 +68,12 @@ export default function HistoryAndMembersTab({
   const [filterMethod, setFilterMethod] = useState("all");
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [newMemberRole, setNewMemberRole] = useState<MemberRole>("viewer");
+  const [addMemberFeedback, setAddMemberFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingGroup, setDeletingGroup] = useState(false);
@@ -155,25 +158,47 @@ export default function HistoryAndMembersTab({
 
   async function handleAddMember(e: React.FormEvent) {
     e.preventDefault();
-    if (!newMemberName.trim()) return;
-    setBusyId("add-member");
     const cleanName = newMemberName.trim();
-    const cleanEmail = newMemberEmail.trim().toLowerCase() || null;
-    await supabase.from("group_members").insert({
-      group_id: groupId,
-      display_name: cleanName,
-      email: cleanEmail,
-      role: "viewer",
+    const cleanEmail = newMemberEmail.trim();
+    if (!cleanName && !cleanEmail) return;
+
+    setBusyId("add-member");
+    setAddMemberFeedback(null);
+
+    const { data, error: rpcErr } = await supabase.rpc("add_group_member", {
+      p_group_id: groupId,
+      p_display_name: cleanName || null,
+      p_email: cleanEmail || null,
+      p_role: newMemberRole === "editor" ? "editor" : "viewer",
     });
+
+    if (rpcErr) {
+      setAddMemberFeedback({ type: "error", text: rpcErr.message });
+      setBusyId(null);
+      return;
+    }
+
+    const res = data as { display_name: string; email: string | null; linked: boolean };
     await logGroupNotification(supabase, {
       groupId,
       actorUserId: currentUserId,
       actorName,
       actionType: "member_added",
-      message: `${actorName} invited ${cleanName}${cleanEmail ? ` (${cleanEmail})` : ""} to the group`,
+      message: `${actorName} added ${res.display_name}${res.email ? ` (${res.email})` : ""} as ${newMemberRole}`,
     });
+
+    setAddMemberFeedback({
+      type: "success",
+      text: res.linked
+        ? `Added ${res.display_name} — automatically linked to their existing Ambag account!`
+        : res.email
+        ? `Added ${res.display_name} — will auto-link when ${res.email} signs in.`
+        : `Added ${res.display_name} as an unclaimed seat.`,
+    });
+
     setNewMemberName("");
     setNewMemberEmail("");
+    setNewMemberRole("viewer");
     setBusyId(null);
     onRefresh();
   }
@@ -211,15 +236,8 @@ export default function HistoryAndMembersTab({
 
   function copyCode() {
     navigator.clipboard.writeText(inviteCode);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 1800);
-  }
-
-  function copyInviteLink() {
-    const link = `${window.location.origin}/join/${inviteCode}`;
-    navigator.clipboard.writeText(link);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 1800);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
   }
 
   return (
@@ -354,11 +372,10 @@ export default function HistoryAndMembersTab({
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`px-2 py-0.5 rounded text-[11px] capitalize ${
-                            p.method === "online"
-                              ? "bg-sky-500/15 text-sky-300"
-                              : "bg-emerald-500/15 text-emerald-300"
-                          }`}
+                          className={`px-2 py-0.5 rounded text-[11px] capitalize ${p.method === "online"
+                            ? "bg-sky-500/15 text-sky-300"
+                            : "bg-emerald-500/15 text-emerald-300"
+                            }`}
                         >
                           {p.method}
                         </span>
@@ -406,35 +423,20 @@ export default function HistoryAndMembersTab({
         {!isSavings && (
           <>
             <div className="fintech-card rounded-2xl p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-white">Invite Teammates</h3>
+              <h3 className="text-sm font-semibold text-white">Group Invite Code</h3>
               <p className="text-xs text-slate-400">
-                Share the 1-click invite link or 8-character code—or add their email below so they join automatically on sign-in.
+                Share this code with teammates so they can join or claim their seat.
               </p>
-              <button
-                type="button"
-                onClick={copyInviteLink}
-                className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-xs font-semibold text-emerald-300 transition cursor-pointer"
-              >
-                {copiedLink ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-emerald-400" /> Invite Link Copied!
-                  </>
-                ) : (
-                  <>
-                    <Link2 className="h-3.5 w-3.5" /> Copy Shareable Invite Link
-                  </>
-                )}
-              </button>
-              <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800">
-                <span className="num text-sm font-semibold tracking-widest text-slate-200">
+              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="num text-base font-semibold tracking-widest text-emerald-400">
                   {inviteCode}
                 </span>
                 <button
                   onClick={copyCode}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 cursor-pointer"
                 >
-                  {copiedCode ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copiedCode ? "Copied" : "Code"}
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? "Copied" : "Copy"}
                 </button>
               </div>
             </div>
@@ -505,33 +507,52 @@ export default function HistoryAndMembersTab({
               </div>
 
               {isLeader && (
-                <form onSubmit={handleAddMember} className="space-y-2 pt-2 border-t border-slate-800/80">
+                <form onSubmit={handleAddMember} className="space-y-2.5 pt-2 border-t border-slate-800/80">
                   <p className="text-[11px] font-medium text-slate-400">
-                    Add member by name &amp; email (auto-links on sign-in)
+                    Add Member (by name, email, or both)
                   </p>
-                  <input
-                    required
-                    value={newMemberName}
-                    onChange={(e) => setNewMemberName(e.target.value)}
-                    placeholder="Teammate name (e.g. Leonard)"
-                    className="w-full px-3 py-2 rounded-lg bg-[#161a24] border border-slate-700/70 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                  <div className="flex gap-2">
+                  <div className="space-y-2">
+                    <input
+                      value={newMemberName}
+                      onChange={(e) => setNewMemberName(e.target.value)}
+                      placeholder="Display name (e.g. Leonard)"
+                      className="w-full px-3 py-1.5 rounded-lg bg-[#161a24] border border-slate-700/70 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    />
                     <input
                       type="email"
                       value={newMemberEmail}
                       onChange={(e) => setNewMemberEmail(e.target.value)}
-                      placeholder="Email (optional, e.g. leonard@gmail.com)"
-                      className="flex-1 px-3 py-2 rounded-lg bg-[#161a24] border border-slate-700/70 text-xs text-white focus:outline-none focus:border-emerald-500"
+                      placeholder="Email (auto-links account, e.g. leonard@gmail.com)"
+                      className="w-full px-3 py-1.5 rounded-lg bg-[#161a24] border border-slate-700/70 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                     />
-                    <button
-                      type="submit"
-                      disabled={busyId === "add-member"}
-                      className="shrink-0 flex items-center gap-1 px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold cursor-pointer"
-                    >
-                      <UserPlus className="h-3.5 w-3.5" /> Add
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <SelectDropdown
+                        size="sm"
+                        value={newMemberRole}
+                        onChange={(v) => setNewMemberRole(v as MemberRole)}
+                        options={ROLE_OPTIONS}
+                        className="w-28"
+                      />
+                      <button
+                        type="submit"
+                        disabled={busyId === "add-member" || (!newMemberName.trim() && !newMemberEmail.trim())}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold cursor-pointer disabled:opacity-50 transition"
+                      >
+                        <UserPlus className="h-3.5 w-3.5" /> Add Member
+                      </button>
+                    </div>
                   </div>
+                  {addMemberFeedback && (
+                    <p
+                      className={`text-[11px] leading-snug ${
+                        addMemberFeedback.type === "error"
+                          ? "text-rose-400"
+                          : "text-emerald-300"
+                      }`}
+                    >
+                      {addMemberFeedback.text}
+                    </p>
+                  )}
                 </form>
               )}
             </div>

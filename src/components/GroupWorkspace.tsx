@@ -125,8 +125,7 @@ export default function GroupWorkspace({
   }
 
   function copyInviteCode() {
-    const link = `${window.location.origin}/join/${initialGroup.invite_code}`;
-    navigator.clipboard.writeText(link);
+    navigator.clipboard.writeText(initialGroup.invite_code);
     setCopiedCode(true);
     setTimeout(() => setCopiedCode(false), 1800);
   }
@@ -268,14 +267,14 @@ export default function GroupWorkspace({
                 <button
                   onClick={copyInviteCode}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 cursor-pointer transition"
-                  title="Copy 1-Click Shareable Invite Link"
+                  title="Copy Invite Code"
                 >
                   {copiedCode ? (
                     <Check className="h-3.5 w-3.5 text-emerald-400" />
                   ) : (
                     <Copy className="h-3.5 w-3.5 text-slate-400" />
                   )}
-                  <span>{copiedCode ? "Link Copied!" : "Invite Link"}</span>
+                  <span className="num tracking-wider">{initialGroup.invite_code}</span>
                 </button>
               </>
             )}

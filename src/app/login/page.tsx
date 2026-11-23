@@ -23,9 +23,6 @@ export default function LoginPage() {
     setError(null);
     setMessage(null);
 
-    const nextParam = new URLSearchParams(window.location.search).get("next");
-    const safeNext = nextParam && nextParam.startsWith("/") ? nextParam : "/";
-
     try {
       if (mode === "signup") {
         const { data, error: signUpErr } = await supabase.auth.signUp({
@@ -33,12 +30,12 @@ export default function LoginPage() {
           password,
           options: {
             data: { full_name: fullName.trim() || email.split("@")[0] },
-            emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`,
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         });
         if (signUpErr) throw signUpErr;
         if (data.session) {
-          router.push(safeNext);
+          router.push("/");
           router.refresh();
         } else {
           setMessage("Account created! Check your email to confirm, then sign in.");
@@ -49,7 +46,7 @@ export default function LoginPage() {
           password,
         });
         if (signInErr) throw signInErr;
-        router.push(safeNext);
+        router.push("/");
         router.refresh();
       }
     } catch (err) {
@@ -62,12 +59,10 @@ export default function LoginPage() {
   async function handleGoogleAuth() {
     setLoading(true);
     setError(null);
-    const nextParam = new URLSearchParams(window.location.search).get("next");
-    const safeNext = nextParam && nextParam.startsWith("/") ? nextParam : "/";
     const { error: oauthErr } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
     if (oauthErr) {
