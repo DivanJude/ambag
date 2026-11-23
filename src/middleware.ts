@@ -33,13 +33,19 @@ export async function middleware(request: NextRequest) {
 
   if (!user && !isAuthRoute) {
     const url = request.nextUrl.clone();
+    const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
     url.pathname = "/login";
+    if (nextPath && nextPath !== "/") {
+      url.searchParams.set("next", nextPath);
+    }
     return NextResponse.redirect(url);
   }
 
   if (user && request.nextUrl.pathname === "/login") {
+    const next = request.nextUrl.searchParams.get("next");
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = next && next.startsWith("/") ? next : "/";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

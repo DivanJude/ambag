@@ -19,6 +19,7 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
+  Link2,
 } from "lucide-react";
 
 interface HistoryAndMembersTabProps {
@@ -67,7 +68,9 @@ export default function HistoryAndMembersTab({
   const [filterMember, setFilterMember] = useState("all");
   const [filterMethod, setFilterMethod] = useState("all");
   const [newMemberName, setNewMemberName] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingGroup, setDeletingGroup] = useState(false);
@@ -154,10 +157,12 @@ export default function HistoryAndMembersTab({
     e.preventDefault();
     if (!newMemberName.trim()) return;
     setBusyId("add-member");
-    const clean = newMemberName.trim();
+    const cleanName = newMemberName.trim();
+    const cleanEmail = newMemberEmail.trim().toLowerCase() || null;
     await supabase.from("group_members").insert({
       group_id: groupId,
-      display_name: clean,
+      display_name: cleanName,
+      email: cleanEmail,
       role: "viewer",
     });
     await logGroupNotification(supabase, {
@@ -165,9 +170,10 @@ export default function HistoryAndMembersTab({
       actorUserId: currentUserId,
       actorName,
       actionType: "member_added",
-      message: `${actorName} added ${clean} to the group`,
+      message: `${actorName} invited ${cleanName}${cleanEmail ? ` (${cleanEmail})` : ""} to the group`,
     });
     setNewMemberName("");
+    setNewMemberEmail("");
     setBusyId(null);
     onRefresh();
   }
@@ -205,8 +211,15 @@ export default function HistoryAndMembersTab({
 
   function copyCode() {
     navigator.clipboard.writeText(inviteCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 1800);
+  }
+
+  function copyInviteLink() {
+    const link = `${window.location.origin}/join/${inviteCode}`;
+    navigator.clipboard.writeText(link);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 1800);
   }
 
   return (
@@ -393,20 +406,35 @@ export default function HistoryAndMembersTab({
         {!isSavings && (
           <>
             <div className="fintech-card rounded-2xl p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-white">Group Invite Code</h3>
+              <h3 className="text-sm font-semibold text-white">Invite Teammates</h3>
               <p className="text-xs text-slate-400">
-                Share this code with teammates so they can join or claim their seat.
+                Share the 1-click invite link or 8-character code—or add their email below so they join automatically on sign-in.
               </p>
-              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                <span className="num text-base font-semibold tracking-widest text-emerald-400">
+              <button
+                type="button"
+                onClick={copyInviteLink}
+                className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-xs font-semibold text-emerald-300 transition cursor-pointer"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-400" /> Invite Link Copied!
+                  </>
+                ) : (
+                  <>
+                    <Link2 className="h-3.5 w-3.5" /> Copy Shareable Invite Link
+                  </>
+                )}
+              </button>
+              <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="num text-sm font-semibold tracking-widest text-slate-200">
                   {inviteCode}
                 </span>
                 <button
                   onClick={copyCode}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 cursor-pointer"
                 >
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-                  {copied ? "Copied" : "Copy"}
+                  {copiedCode ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedCode ? "Copied" : "Code"}
                 </button>
               </div>
             </div>
@@ -477,20 +505,33 @@ export default function HistoryAndMembersTab({
               </div>
 
               {isLeader && (
-                <form onSubmit={handleAddMember} className="flex gap-2 pt-1">
+                <form onSubmit={handleAddMember} className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <p className="text-[11px] font-medium text-slate-400">
+                    Add member by name &amp; email (auto-links on sign-in)
+                  </p>
                   <input
+                    required
                     value={newMemberName}
                     onChange={(e) => setNewMemberName(e.target.value)}
-                    placeholder="Pre-add member name..."
-                    className="flex-1 px-3 py-1.5 rounded-lg bg-[#161a24] border border-slate-700/70 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    placeholder="Teammate name (e.g. Leonard)"
+                    className="w-full px-3 py-2 rounded-lg bg-[#161a24] border border-slate-700/70 text-xs text-white focus:outline-none focus:border-emerald-500"
                   />
-                  <button
-                    type="submit"
-                    disabled={busyId === "add-member"}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white cursor-pointer"
-                  >
-                    <UserPlus className="h-3.5 w-3.5" /> Add
-                  </button>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={newMemberEmail}
+                      onChange={(e) => setNewMemberEmail(e.target.value)}
+                      placeholder="Email (optional, e.g. leonard@gmail.com)"
+                      className="flex-1 px-3 py-2 rounded-lg bg-[#161a24] border border-slate-700/70 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={busyId === "add-member"}
+                      className="shrink-0 flex items-center gap-1 px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold cursor-pointer"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" /> Add
+                    </button>
+                  </div>
                 </form>
               )}
             </div>

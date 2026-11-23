@@ -20,6 +20,9 @@ export default async function HomePage() {
     redirect("/login");
   }
 
+  // Auto-claim any group memberships invited by this user's email
+  await supabase.rpc("claim_invited_memberships");
+
   // Run all queries in a single parallel round-trip (RLS automatically scopes rows to user's groups)
   const [profRes, gRes, mRes, cRes, bRes, pRes] = await Promise.all([
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
