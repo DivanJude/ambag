@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/finance";
 import { logGroupNotification } from "@/lib/notify";
@@ -16,10 +17,14 @@ import {
   Copy,
   Check,
   Trash2,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 
 interface HistoryAndMembersTabProps {
   groupId: string;
+  groupName: string;
+  isSavings: boolean;
   inviteCode: string;
   currency: string;
   currentUserId: string;
@@ -44,6 +49,8 @@ const ROLE_OPTIONS: DropdownOption[] = [
 
 export default function HistoryAndMembersTab({
   groupId,
+  groupName,
+  isSavings,
   inviteCode,
   currency,
   currentUserId,
@@ -54,6 +61,7 @@ export default function HistoryAndMembersTab({
   contributions,
   onRefresh,
 }: HistoryAndMembersTabProps) {
+  const router = useRouter();
   const supabase = createClient();
 
   const [filterMember, setFilterMember] = useState("all");
@@ -61,6 +69,20 @@ export default function HistoryAndMembersTab({
   const [newMemberName, setNewMemberName] = useState("");
   const [copied, setCopied] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(false);
+
+  async function handleDeleteGroup() {
+    setDeletingGroup(true);
+    const { error } = await supabase.from("groups").delete().eq("id", groupId);
+    if (!error) {
+      router.push("/");
+      router.refresh();
+    } else {
+      setDeletingGroup(false);
+      alert(error.message);
+    }
+  }
 
   const memberMap = new Map(members.map((m) => [m.id, m]));
   const memberFilterOptions: DropdownOption[] = [
@@ -266,16 +288,20 @@ export default function HistoryAndMembersTab({
         {/* Approved Payment History Ledger */}
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-white">Payment History</h3>
+            <h3 className="text-sm font-semibold text-white">
+              {isSavings ? "Deposit History" : "Payment History"}
+            </h3>
             <div className="flex items-center gap-2">
-              <SelectDropdown
-                size="sm"
-                align="right"
-                value={filterMember}
-                onChange={setFilterMember}
-                options={memberFilterOptions}
-                className="w-36"
-              />
+              {!isSavings && (
+                <SelectDropdown
+                  size="sm"
+                  align="right"
+                  value={filterMember}
+                  onChange={setFilterMember}
+                  options={memberFilterOptions}
+                  className="w-36"
+                />
+              )}
               <SelectDropdown
                 size="sm"
                 align="right"
@@ -362,110 +388,156 @@ export default function HistoryAndMembersTab({
         </div>
       </div>
 
-      {/* Right Column: Invite Code + Members & Roles */}
+      {/* Right Column: Invite Code + Members & Roles (Project only) + Danger Zone */}
       <div className="space-y-4">
-        <div className="fintech-card rounded-2xl p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-white">Group Invite Code</h3>
-          <p className="text-xs text-zinc-400">
-            Share this code with teammates so they can join or claim their seat.
-          </p>
-          <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800">
-            <span className="num text-base font-semibold tracking-widest text-emerald-400">
-              {inviteCode}
-            </span>
-            <button
-              onClick={copyCode}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-200 cursor-pointer"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? "Copied" : "Copy"}
-            </button>
-          </div>
-        </div>
-
-        <div className="fintech-card rounded-2xl p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
-              <Shield className="h-4 w-4 text-emerald-400" /> Members & Roles
-            </h3>
-            <span className="text-xs text-zinc-500 tnum">{members.length} total</span>
-          </div>
-
-          <div className="space-y-2.5">
-            {members.map((m) => (
-              <div
-                key={m.id}
-                className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800/80 flex items-center justify-between gap-2"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-white truncate">
-                      {m.display_name}
-                    </span>
-                    {!m.user_id && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">
-                        Unclaimed
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-zinc-500 truncate">
-                    {m.email ?? "Waiting for teammate to join"}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {m.role === "leader" ? (
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-medium text-emerald-300">
-                      Leader
-                    </span>
-                  ) : isLeader ? (
-                    <>
-                      <SelectDropdown
-                        size="sm"
-                        align="right"
-                        value={m.role}
-                        disabled={busyId === m.id}
-                        onChange={(v) => handleRoleChange(m, v as MemberRole)}
-                        options={ROLE_OPTIONS}
-                        className="w-24"
-                      />
-                      <button
-                        onClick={() => handleRemoveMember(m)}
-                        disabled={busyId === m.id}
-                        title="Remove member"
-                        className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 cursor-pointer"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </>
-                  ) : (
-                    <span className="px-2 py-1 rounded-lg bg-zinc-800 text-[11px] capitalize text-zinc-300">
-                      {m.role}
-                    </span>
-                  )}
-                </div>
+        {!isSavings && (
+          <>
+            <div className="fintech-card rounded-2xl p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-white">Group Invite Code</h3>
+              <p className="text-xs text-slate-400">
+                Share this code with teammates so they can join or claim their seat.
+              </p>
+              <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                <span className="num text-base font-semibold tracking-widest text-emerald-400">
+                  {inviteCode}
+                </span>
+                <button
+                  onClick={copyCode}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 cursor-pointer"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? "Copied" : "Copy"}
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
 
-          {isLeader && (
-            <form onSubmit={handleAddMember} className="flex gap-2 pt-1">
-              <input
-                value={newMemberName}
-                onChange={(e) => setNewMemberName(e.target.value)}
-                placeholder="Pre-add member name..."
-                className="flex-1 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-emerald-500"
-              />
+            <div className="fintech-card rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                  <Shield className="h-4 w-4 text-emerald-400" /> Members & Roles
+                </h3>
+                <span className="text-xs text-slate-500 tnum">{members.length} total</span>
+              </div>
+
+              <div className="space-y-2.5">
+                {members.map((m) => (
+                  <div
+                    key={m.id}
+                    className="p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-white truncate">
+                          {m.display_name}
+                        </span>
+                        {!m.user_id && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+                            Unclaimed
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate">
+                        {m.email ?? "Waiting for teammate to join"}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {m.role === "leader" ? (
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-medium text-emerald-300">
+                          Leader
+                        </span>
+                      ) : isLeader ? (
+                        <>
+                          <SelectDropdown
+                            size="sm"
+                            align="right"
+                            value={m.role}
+                            disabled={busyId === m.id}
+                            onChange={(v) => handleRoleChange(m, v as MemberRole)}
+                            options={ROLE_OPTIONS}
+                            className="w-24"
+                          />
+                          <button
+                            onClick={() => handleRemoveMember(m)}
+                            disabled={busyId === m.id}
+                            title="Remove member"
+                            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-500 hover:text-rose-400 cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="px-2 py-1 rounded-lg bg-slate-800 text-[11px] capitalize text-slate-300">
+                          {m.role}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {isLeader && (
+                <form onSubmit={handleAddMember} className="flex gap-2 pt-1">
+                  <input
+                    value={newMemberName}
+                    onChange={(e) => setNewMemberName(e.target.value)}
+                    placeholder="Pre-add member name..."
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-[#161a24] border border-slate-700/70 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <button
+                    type="submit"
+                    disabled={busyId === "add-member"}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-white cursor-pointer"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" /> Add
+                  </button>
+                </form>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Danger Zone — Leader / Owner can permanently delete */}
+        {isLeader && (
+          <div className="rounded-2xl border border-rose-500/25 bg-rose-500/5 p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-rose-300 flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4" /> Danger Zone
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Permanently delete <strong className="text-slate-200">{groupName}</strong> and all associated{" "}
+              {isSavings ? "deposit records" : "components, bundles, and payment records"}.
+            </p>
+            {!showDeleteConfirm ? (
               <button
-                type="submit"
-                disabled={busyId === "add-member"}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-white cursor-pointer"
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs font-semibold text-rose-300 transition cursor-pointer"
               >
-                <UserPlus className="h-3.5 w-3.5" /> Add
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete {isSavings ? "Savings Goal" : "Project Group"}
               </button>
-            </form>
-          )}
-        </div>
+            ) : (
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deletingGroup}
+                  onClick={handleDeleteGroup}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+                >
+                  {deletingGroup && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  Confirm Delete
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

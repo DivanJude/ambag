@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/finance";
 import { logGroupNotification } from "@/lib/notify";
 import type { GroupMember, PaymentMethod } from "@/lib/types";
 import SelectDropdown, { type DropdownOption } from "./SelectDropdown";
+import DatePicker from "./DatePicker";
 import { Loader2, Upload, X } from "lucide-react";
 
 interface PaymentModalProps {
@@ -141,21 +142,22 @@ export default function PaymentModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {canEdit ? (
-            <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1">Member</label>
-              <SelectDropdown
-                value={memberId}
-                onChange={setMemberId}
-                options={memberOptions}
-                placeholder="Select member..."
-              />
-            </div>
-          ) : (
-            <div className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 text-xs text-zinc-300">
-              Submitting as <strong className="text-white">{myMember?.display_name ?? "Member"}</strong>
-            </div>
-          )}
+          {!isSavings &&
+            (canEdit ? (
+              <div>
+                <label className="block text-xs font-medium text-zinc-300 mb-1">Member</label>
+                <SelectDropdown
+                  value={memberId}
+                  onChange={setMemberId}
+                  options={memberOptions}
+                  placeholder="Select member..."
+                />
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 text-xs text-zinc-300">
+                Submitting as <strong className="text-white">{myMember?.display_name ?? "Member"}</strong>
+              </div>
+            ))}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -168,17 +170,15 @@ export default function PaymentModal({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="500.00"
-                className="num w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-white focus:outline-none focus:border-emerald-500"
+                className="num w-full px-3 py-2 rounded-xl bg-[#161a24] border border-slate-700/70 text-sm text-white focus:outline-none focus:border-emerald-500"
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1">Date</label>
-              <input
-                type="date"
-                required
+              <DatePicker
                 value={paidAt}
-                onChange={(e) => setPaidAt(e.target.value)}
-                className="num w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-white focus:outline-none focus:border-emerald-500"
+                onChange={setPaidAt}
+                accent={isSavings ? "violet" : "emerald"}
               />
             </div>
           </div>

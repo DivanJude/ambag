@@ -17,6 +17,7 @@ import ComponentsTab from "./ComponentsTab";
 import HistoryAndMembersTab from "./HistoryAndMembersTab";
 import PaymentModal from "./PaymentModal";
 import NotificationBell from "./NotificationBell";
+import DatePicker from "./DatePicker";
 import {
   ArrowLeft,
   Wallet,
@@ -239,38 +240,44 @@ export default function GroupWorkspace({
                       : "bg-emerald-500/12 text-emerald-300"
                   }`}
                 >
-                  {isSavings ? "Savings Goal" : "Project Tracker"}
+                  {isSavings ? "Personal Savings" : "Project Group"}
                 </span>
-                <span className="px-2 py-0.5 rounded-md bg-zinc-800/90 text-zinc-300 text-[11px] font-medium capitalize">
-                  {myMember?.role ?? "viewer"}
-                </span>
+                {!isSavings && (
+                  <span className="px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-300 text-[11px] font-medium capitalize">
+                    {myMember?.role ?? "viewer"}
+                  </span>
+                )}
               </div>
               {initialGroup.description && (
-                <p className="text-xs text-zinc-400 truncate mt-0.5">{initialGroup.description}</p>
+                <p className="text-xs text-slate-400 truncate mt-0.5">{initialGroup.description}</p>
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <NotificationBell
-              groupId={initialGroup.id}
-              currentUserId={currentUserId}
-              initialNotifications={initialNotifications}
-              initialLastReadAt={initialLastReadAt}
-            />
+            {!isSavings && (
+              <>
+                <NotificationBell
+                  groupId={initialGroup.id}
+                  currentUserId={currentUserId}
+                  initialNotifications={initialNotifications}
+                  initialLastReadAt={initialLastReadAt}
+                />
 
-            <button
-              onClick={copyInviteCode}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 cursor-pointer transition"
-              title="Copy Invite Code"
-            >
-              {copiedCode ? (
-                <Check className="h-3.5 w-3.5 text-emerald-400" />
-              ) : (
-                <Copy className="h-3.5 w-3.5 text-zinc-400" />
-              )}
-              <span className="num tracking-wider">{initialGroup.invite_code}</span>
-            </button>
+                <button
+                  onClick={copyInviteCode}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 cursor-pointer transition"
+                  title="Copy Invite Code"
+                >
+                  {copiedCode ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-400" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 text-slate-400" />
+                  )}
+                  <span className="num tracking-wider">{initialGroup.invite_code}</span>
+                </button>
+              </>
+            )}
 
             <button
               onClick={handleExportCsv}
@@ -343,8 +350,8 @@ export default function GroupWorkspace({
             }`}
           >
             <History className="h-3.5 w-3.5" />
-            History & Members
-            {financials.pendingContributionsCount > 0 && (
+            {isSavings ? "Deposit History & Settings" : "History & Members"}
+            {!isSavings && financials.pendingContributionsCount > 0 && (
               <span className="num px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-300 text-[10px]">
                 {financials.pendingContributionsCount}
               </span>
@@ -475,13 +482,15 @@ export default function GroupWorkspace({
                       className="num px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-xs text-white"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-zinc-400 mb-1">Target Date</label>
-                    <input
-                      type="date"
+                  <div className="w-44">
+                    <label className="block text-[11px] text-slate-400 mb-1">Target Date</label>
+                    <DatePicker
+                      size="sm"
                       value={goalDate}
-                      onChange={(e) => setGoalDate(e.target.value)}
-                      className="num px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-xs text-white"
+                      onChange={setGoalDate}
+                      placeholder="Pick date"
+                      allowClear
+                      accent="violet"
                     />
                   </div>
                   <button
@@ -626,8 +635,9 @@ export default function GroupWorkspace({
               </div>
             )}
 
-            {/* Individual Member Balances Ledger */}
-            <div className="fintech-card rounded-2xl overflow-hidden">
+            {/* Individual Member Balances Ledger (Project Groups only — Savings is Personal) */}
+            {!isSavings && (
+              <div className="fintech-card rounded-2xl overflow-hidden">
               <div className="px-5 py-4 border-b border-zinc-800/80 flex items-center justify-between">
                 <div>
                   <h2 className="text-sm font-semibold text-white">Member Balances Ledger</h2>
@@ -720,6 +730,7 @@ export default function GroupWorkspace({
                 </table>
               </div>
             </div>
+            )}
           </div>
         )}
 
@@ -739,6 +750,8 @@ export default function GroupWorkspace({
         {tab === "history" && (
           <HistoryAndMembersTab
             groupId={initialGroup.id}
+            groupName={initialGroup.name}
+            isSavings={isSavings}
             inviteCode={initialGroup.invite_code}
             currency={initialGroup.currency}
             currentUserId={currentUserId}
