@@ -34,6 +34,7 @@ export default function NotificationBell({
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<GroupNotification[]>(initialNotifications);
   const [lastReadAt, setLastReadAt] = useState<string | null>(initialLastReadAt);
+  const [clickedReadIds, setClickedReadIds] = useState<Record<string, boolean>>({});
   const [liveToast, setLiveToast] = useState<GroupNotification | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -86,21 +87,49 @@ export default function NotificationBell({
   }, [open]);
 
   const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
-  const unreadCount = notifications.filter(
-    (n) => new Date(n.created_at).getTime() > lastReadMs
-  ).length;
+  const isNotificationUnread = (n: GroupNotification) =>
+    !clickedReadIds[n.id] && new Date(n.created_at).getTime() > lastReadMs;
+  const unreadCount = notifications.filter(isNotificationUnread).length;
 
-  async function markAllRead() {
-    const nowIso = new Date().toISOString();
-    setLastReadAt(nowIso);
+  async function persistReadTimestamp(iso: string) {
+    setLastReadAt(iso);
     await supabase.from("notification_reads").upsert(
       {
         group_id: groupId,
         user_id: currentUserId,
-        last_read_at: nowIso,
+        last_read_at: iso,
       },
       { onConflict: "group_id,user_id" }
     );
+  }
+
+  async function markAllRead() {
+    setClickedReadIds({});
+    await persistReadTimestamp(new Date().toISOString());
+  }
+
+  async function markItemRead(n: GroupNotification) {
+    if (!isNotificationUnread(n)) return;
+    setClickedReadIds((prev) => ({ ...prev, [n.id]: true }));
+
+    // If this notification is at or newer than current lastReadAt, advance lastReadAt if it's the newest unread
+    const remainingUnread = notifications.filter(
+      (item) => item.id !== n.id && isNotificationUnread(item)
+    );
+    if (remainingUnread.length === 0) {
+      await persistReadTimestamp(new Date().toISOString());
+    } else {
+      const itemMs = new Date(n.created_at).getTime();
+      if (itemMs > lastReadMs) {
+        // Persist timestamp if no older unread notifications exist
+        const hasOlderUnread = remainingUnread.some(
+          (item) => new Date(item.created_at).getTime() < itemMs
+        );
+        if (!hasOlderUnread) {
+          await persistReadTimestamp(n.created_at);
+        }
+      }
+    }
   }
 
   return (
@@ -149,28 +178,32 @@ export default function NotificationBell({
                 </div>
               ) : (
                 notifications.map((n) => {
-                  const isUnread = new Date(n.created_at).getTime() > lastReadMs;
+                  const isUnread = isNotificationUnread(n);
                   return (
-                    <div
+                    <button
                       key={n.id}
-                      className={`px-4 py-3 text-xs flex items-start gap-2.5 ${
-                        isUnread ? "bg-rose-500/5" : ""
+                      type="button"
+                      onClick={() => markItemRead(n)}
+                      className={`w-full text-left px-4 py-3 text-xs flex items-start gap-2.5 transition cursor-pointer hover:bg-slate-800/50 ${
+                        isUnread ? "bg-rose-500/8" : ""
                       }`}
                     >
                       <span
-                        className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
+                        className={`mt-1.5 h-2 w-2 rounded-full shrink-0 transition ${
                           isUnread ? "bg-rose-400" : "bg-slate-700"
                         }`}
                       />
                       <div className="min-w-0 flex-1 space-y-0.5">
-                        <p className="text-zinc-200 leading-relaxed">{n.message}</p>
-                        <p className="text-[11px] text-zinc-500 flex items-center gap-1.5">
-                          <span className="font-medium text-zinc-400">{n.actor_name}</span>
+                        <p className={`leading-relaxed ${isUnread ? "text-white font-medium" : "text-slate-300"}`}>
+                          {n.message}
+                        </p>
+                        <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                          <span className="font-medium text-slate-400">{n.actor_name}</span>
                           <span>•</span>
                           <span className="num">{formatRelative(n.created_at)}</span>
                         </p>
                       </div>
-                    </div>
+                    </button>
                   );
                 })
               )}
@@ -179,17 +212,24 @@ export default function NotificationBell({
         )}
       </div>
 
-      {/* Live Toast when another teammate makes an edit */}
+      {/* Live Toast when another teammate makes an edit — click to mark read & dismiss */}
       {liveToast && (
-        <div className="fixed bottom-5 right-5 z-50 max-w-sm rounded-2xl border border-emerald-500/35 bg-[#131318]/95 backdrop-blur-xl px-4 py-3 shadow-2xl shadow-black/70 flex items-start gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            markItemRead(liveToast);
+            setLiveToast(null);
+          }}
+          className="fixed bottom-5 right-5 z-50 max-w-sm text-left rounded-2xl border border-emerald-500/35 bg-[#131722]/95 hover:bg-[#191f2e] backdrop-blur-xl px-4 py-3 shadow-2xl shadow-black/70 flex items-start gap-3 transition cursor-pointer"
+        >
           <div className="h-8 w-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
             <Bell className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-emerald-300">Group Update</p>
-            <p className="text-xs text-zinc-200 mt-0.5 leading-snug">{liveToast.message}</p>
+            <p className="text-[11px] font-semibold text-emerald-300">Group Update • Click to mark read</p>
+            <p className="text-xs text-slate-200 mt-0.5 leading-snug">{liveToast.message}</p>
           </div>
-        </div>
+        </button>
       )}
     </>
   );

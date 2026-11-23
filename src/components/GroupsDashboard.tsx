@@ -87,6 +87,8 @@ export default function GroupsDashboard({
   const [preview, setPreview] = useState<GroupPreview | null>(null);
   const [selectedSeatId, setSelectedSeatId] = useState<string>("");
 
+  const canSeedBrowsers = user.email.trim().toLowerCase() === "divanrosas45@gmail.com";
+
   useLockBodyScroll(showCreate || showJoin || !!deletingCard);
 
   const projectGroups = useMemo(
@@ -540,11 +542,13 @@ export default function GroupsDashboard({
               <p className="text-sm text-slate-400 leading-relaxed">
                 {activeTab === "savings"
                   ? "Create a private savings tracker to plan and save up for something you want to buy in the future."
-                  : "Create a group project tracker, join a teammate's group via invite code, or load your BROwsers Thesis Hardware sample."}
+                  : canSeedBrowsers
+                  ? "Create a group project tracker, join a teammate's group via invite code, or load your BROwsers Thesis Hardware sample."
+                  : "Create a group project tracker or join a teammate's group via invite code."}
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-              {activeTab === "project" && (
+              {activeTab === "project" && canSeedBrowsers && (
                 <button
                   onClick={handleSeedBrowsers}
                   disabled={seeding}
@@ -559,11 +563,13 @@ export default function GroupsDashboard({
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer ${
                   activeTab === "savings"
                     ? "bg-violet-500 hover:bg-violet-400 text-white"
+                    : !canSeedBrowsers
+                    ? "bg-emerald-500 hover:bg-emerald-400 text-zinc-950"
                     : "bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200"
                 }`}
               >
                 <Plus className="h-4 w-4" />
-                {activeTab === "savings" ? "Create Savings Goal" : "Start From Scratch"}
+                {activeTab === "savings" ? "Create Savings Goal" : "Create Project Group"}
               </button>
             </div>
           </div>
@@ -574,6 +580,7 @@ export default function GroupsDashboard({
                 {activeTab === "savings" ? "Your Personal Savings Goals" : "Your Project Groups"}
               </h2>
               {activeTab === "project" &&
+                canSeedBrowsers &&
                 !projectGroups.some((g) => g.group.name.includes("BROwsers")) && (
                   <button
                     onClick={handleSeedBrowsers}
