@@ -7,6 +7,7 @@ import type {
   GroupMember,
   OrderBundle,
 } from "@/lib/types";
+import type { GroupNotification } from "@/lib/notify";
 import GroupWorkspace from "@/components/GroupWorkspace";
 
 export default async function GroupPage({
@@ -35,7 +36,7 @@ export default async function GroupPage({
     notFound();
   }
 
-  const [mRes, cRes, bRes, pRes] = await Promise.all([
+  const [mRes, cRes, bRes, pRes, nRes, rRes, profRes] = await Promise.all([
     supabase
       .from("group_members")
       .select("*")
@@ -58,20 +59,41 @@ export default async function GroupPage({
       .eq("group_id", id)
       .order("paid_at", { ascending: false })
       .order("created_at", { ascending: false }),
+    supabase
+      .from("group_notifications")
+      .select("*")
+      .eq("group_id", id)
+      .order("created_at", { ascending: false })
+      .limit(40),
+    supabase
+      .from("notification_reads")
+      .select("last_read_at")
+      .eq("group_id", id)
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
   ]);
 
   const members = (mRes.data ?? []) as GroupMember[];
   const myMember = members.find((m) => m.user_id === user.id) ?? null;
+  const actorName =
+    myMember?.display_name ??
+    profRes.data?.full_name ??
+    user.email?.split("@")[0] ??
+    "Member";
 
   return (
     <GroupWorkspace
       currentUserId={user.id}
+      actorName={actorName}
       myMember={myMember}
       initialGroup={groupData as Group}
       initialMembers={members}
       initialComponents={(cRes.data ?? []) as ComponentItem[]}
       initialBundles={(bRes.data ?? []) as OrderBundle[]}
       initialContributions={(pRes.data ?? []) as Contribution[]}
+      initialNotifications={(nRes.data ?? []) as GroupNotification[]}
+      initialLastReadAt={rRes.data?.last_read_at ?? null}
     />
   );
 }

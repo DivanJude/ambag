@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { computeGroupFinancials, formatCurrency, getComponentTotal } from "@/lib/finance";
+import { logGroupNotification, type GroupNotification } from "@/lib/notify";
 import type {
   ComponentItem,
   Contribution,
@@ -15,6 +16,7 @@ import type {
 import ComponentsTab from "./ComponentsTab";
 import HistoryAndMembersTab from "./HistoryAndMembersTab";
 import PaymentModal from "./PaymentModal";
+import NotificationBell from "./NotificationBell";
 import {
   ArrowLeft,
   Wallet,
@@ -35,22 +37,28 @@ import {
 
 interface GroupWorkspaceProps {
   currentUserId: string;
+  actorName: string;
   myMember: GroupMember | null;
   initialGroup: Group;
   initialMembers: GroupMember[];
   initialComponents: ComponentItem[];
   initialBundles: OrderBundle[];
   initialContributions: Contribution[];
+  initialNotifications: GroupNotification[];
+  initialLastReadAt: string | null;
 }
 
 export default function GroupWorkspace({
   currentUserId,
+  actorName,
   myMember,
   initialGroup,
   initialMembers,
   initialComponents,
   initialBundles,
   initialContributions,
+  initialNotifications,
+  initialLastReadAt,
 }: GroupWorkspaceProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -123,13 +131,21 @@ export default function GroupWorkspace({
 
   async function handleUpdateGoal(e: React.FormEvent) {
     e.preventDefault();
+    const nextTarget = Number(goalAmount) || 0;
     await supabase
       .from("groups")
       .update({
-        target_amount: Number(goalAmount) || 0,
+        target_amount: nextTarget,
         target_date: goalDate || null,
       })
       .eq("id", initialGroup.id);
+    await logGroupNotification(supabase, {
+      groupId: initialGroup.id,
+      actorUserId: currentUserId,
+      actorName,
+      actionType: "goal_updated",
+      message: `${actorName} updated the savings target to ${formatCurrency(nextTarget, initialGroup.currency)}${goalDate ? ` (due ${goalDate})` : ""}`,
+    });
     setEditingGoal(false);
     refresh();
   }
@@ -236,6 +252,13 @@ export default function GroupWorkspace({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <NotificationBell
+              groupId={initialGroup.id}
+              currentUserId={currentUserId}
+              initialNotifications={initialNotifications}
+              initialLastReadAt={initialLastReadAt}
+            />
+
             <button
               onClick={copyInviteCode}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 cursor-pointer transition"
@@ -703,6 +726,8 @@ export default function GroupWorkspace({
         {tab === "components" && !isSavings && (
           <ComponentsTab
             groupId={initialGroup.id}
+            currentUserId={currentUserId}
+            actorName={actorName}
             currency={initialGroup.currency}
             canEdit={canEdit}
             components={initialComponents}
@@ -717,6 +742,7 @@ export default function GroupWorkspace({
             inviteCode={initialGroup.invite_code}
             currency={initialGroup.currency}
             currentUserId={currentUserId}
+            actorName={actorName}
             isLeader={isLeader}
             canEdit={canEdit}
             members={initialMembers}
@@ -730,6 +756,8 @@ export default function GroupWorkspace({
         <PaymentModal
           groupId={initialGroup.id}
           currentUserId={currentUserId}
+          actorName={actorName}
+          currency={initialGroup.currency}
           members={initialMembers}
           myMember={myMember}
           canEdit={canEdit}

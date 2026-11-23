@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { formatCurrency } from "@/lib/finance";
+import { logGroupNotification } from "@/lib/notify";
 import type { GroupMember, PaymentMethod } from "@/lib/types";
+import SelectDropdown, { type DropdownOption } from "./SelectDropdown";
 import { Loader2, Upload, X } from "lucide-react";
 
 interface PaymentModalProps {
   groupId: string;
   currentUserId: string;
+  actorName: string;
+  currency: string;
   members: GroupMember[];
   myMember: GroupMember | null;
   canEdit: boolean;
@@ -19,6 +24,8 @@ interface PaymentModalProps {
 export default function PaymentModal({
   groupId,
   currentUserId,
+  actorName,
+  currency,
   members,
   myMember,
   canEdit,
@@ -38,6 +45,12 @@ export default function PaymentModal({
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const memberOptions: DropdownOption[] = members.map((m) => ({
+    value: m.id,
+    label: m.display_name,
+    hint: m.role,
+  }));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,11 +79,12 @@ export default function PaymentModal({
       }
 
       const status = canEdit ? "approved" : "pending";
+      const numericAmount = Number(amount);
 
       const { error: insertErr } = await supabase.from("contributions").insert({
         group_id: groupId,
         member_id: targetMemberId,
-        amount: Number(amount),
+        amount: numericAmount,
         method,
         status,
         paid_at: paidAt,
@@ -81,6 +95,20 @@ export default function PaymentModal({
       });
 
       if (insertErr) throw insertErr;
+
+      const targetMemberName =
+        members.find((m) => m.id === targetMemberId)?.display_name ?? actorName;
+
+      await logGroupNotification(supabase, {
+        groupId,
+        actorUserId: currentUserId,
+        actorName,
+        actionType: canEdit ? "payment_recorded" : "payment_submitted",
+        message: canEdit
+          ? `${actorName} recorded ${formatCurrency(numericAmount, currency)} (${method}) for ${targetMemberName}`
+          : `${actorName} submitted a ${formatCurrency(numericAmount, currency)} (${method}) payment proof for review`,
+      });
+
       onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save payment");
@@ -90,8 +118,8 @@ export default function PaymentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-[#121216] p-6 space-y-5">
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-[#111115] p-6 space-y-5 shadow-2xl">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-white">
@@ -116,18 +144,12 @@ export default function PaymentModal({
           {canEdit ? (
             <div>
               <label className="block text-xs font-medium text-zinc-300 mb-1">Member</label>
-              <select
-                required
+              <SelectDropdown
                 value={memberId}
-                onChange={(e) => setMemberId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-white"
-              >
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.display_name} ({m.role})
-                  </option>
-                ))}
-              </select>
+                onChange={setMemberId}
+                options={memberOptions}
+                placeholder="Select member..."
+              />
             </div>
           ) : (
             <div className="p-3 rounded-xl bg-zinc-900/70 border border-zinc-800 text-xs text-zinc-300">

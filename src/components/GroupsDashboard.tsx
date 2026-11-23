@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/finance";
 import type { Group, GroupMode, MemberRole } from "@/lib/types";
+import SelectDropdown from "./SelectDropdown";
 import {
   Plus,
   Users,
@@ -672,18 +673,18 @@ export default function GroupsDashboard({
                     <label className="block text-xs font-medium text-zinc-300">
                       Is your name already listed? Claim your seat:
                     </label>
-                    <select
+                    <SelectDropdown
                       value={selectedSeatId}
-                      onChange={(e) => setSelectedSeatId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-white"
-                    >
-                      <option value="">Join as a new member ({user.name})</option>
-                      {preview.unclaimed_seats.map((seat) => (
-                        <option key={seat.id} value={seat.id}>
-                          Claim seat: {seat.display_name} ({seat.role})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSelectedSeatId}
+                      options={[
+                        { value: "", label: `Join as a new member (${user.name})` },
+                        ...preview.unclaimed_seats.map((seat) => ({
+                          value: seat.id,
+                          label: `Claim seat: ${seat.display_name}`,
+                          hint: seat.role,
+                        })),
+                      ]}
+                    />
                   </div>
                 )}
 
