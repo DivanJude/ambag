@@ -104,52 +104,79 @@ export default function GroupWorkspace({
     }
   }
 
-  // Real-time sync across all group tables (debounced to prevent burst refreshes)
+  // Real-time sync across all group tables (explicitly hydrate Realtime JWT before subscribing)
   useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
     const scheduleRefresh = () => {
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = setTimeout(() => {
         router.refresh();
-      }, 250);
+      }, 200);
     };
 
-    const channel = supabase
-      .channel(`group-live-${initialGroup.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "groups", filter: `id=eq.${initialGroup.id}` },
-        scheduleRefresh
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "group_members", filter: `group_id=eq.${initialGroup.id}` },
-        scheduleRefresh
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "components", filter: `group_id=eq.${initialGroup.id}` },
-        scheduleRefresh
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "order_bundles", filter: `group_id=eq.${initialGroup.id}` },
-        scheduleRefresh
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "contributions", filter: `group_id=eq.${initialGroup.id}` },
-        scheduleRefresh
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "group_invitations", filter: `group_id=eq.${initialGroup.id}` },
-        scheduleRefresh
-      )
-      .subscribe();
+    async function connectRealtime() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token);
+      }
+
+      channel = supabase
+        .channel(`group-live-${initialGroup.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "groups", filter: `id=eq.${initialGroup.id}` },
+          scheduleRefresh
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "group_members", filter: `group_id=eq.${initialGroup.id}` },
+          scheduleRefresh
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "components", filter: `group_id=eq.${initialGroup.id}` },
+          scheduleRefresh
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "order_bundles", filter: `group_id=eq.${initialGroup.id}` },
+          scheduleRefresh
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "contributions", filter: `group_id=eq.${initialGroup.id}` },
+          scheduleRefresh
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "group_invitations", filter: `group_id=eq.${initialGroup.id}` },
+          scheduleRefresh
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "group_notifications", filter: `group_id=eq.${initialGroup.id}` },
+          scheduleRefresh
+        )
+        .subscribe();
+    }
+
+    connectRealtime();
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") scheduleRefresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
       if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [initialGroup.id, router, supabase]);
 

@@ -11,6 +11,8 @@ import type {
 } from "@/lib/types";
 import GroupsDashboard, { type DashboardGroupCard } from "@/components/GroupsDashboard";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const supabase = await createClient();
   const {

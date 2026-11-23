@@ -42,36 +42,52 @@ export default function NotificationBell({
     setNotifications(initialNotifications);
   }, [initialNotifications]);
 
-  // Real-time subscription for group edits
+  // Real-time subscription for group edits (explicitly hydrate Realtime JWT first)
   useEffect(() => {
-    const channel = supabase
-      .channel(`group-notifications-${groupId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "group_notifications",
-          filter: `group_id=eq.${groupId}`,
-        },
-        (payload) => {
-          const incoming = payload.new as GroupNotification;
-          setNotifications((prev) => {
-            if (prev.some((n) => n.id === incoming.id)) return prev;
-            return [incoming, ...prev].slice(0, 40);
-          });
-          if (incoming.actor_user_id !== currentUserId) {
-            setLiveToast(incoming);
-            setTimeout(() => {
-              setLiveToast((curr) => (curr?.id === incoming.id ? null : curr));
-            }, 5000);
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function connect() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token);
+      }
+
+      channel = supabase
+        .channel(`group-notifications-${groupId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "group_notifications",
+            filter: `group_id=eq.${groupId}`,
+          },
+          (payload) => {
+            const incoming = payload.new as GroupNotification;
+            setNotifications((prev) => {
+              if (prev.some((n) => n.id === incoming.id)) return prev;
+              return [incoming, ...prev].slice(0, 40);
+            });
+            if (incoming.actor_user_id !== currentUserId) {
+              setLiveToast(incoming);
+              setTimeout(() => {
+                setLiveToast((curr) => (curr?.id === incoming.id ? null : curr));
+              }, 5000);
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+    }
+
+    connect();
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [groupId, currentUserId, supabase]);
 

@@ -108,34 +108,56 @@ export default function GroupsDashboard({
 
   // Real-time sync for dashboard cards, balances, and incoming invitations
   useEffect(() => {
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
     const scheduleRefresh = () => {
       if (dashRefreshRef.current) clearTimeout(dashRefreshRef.current);
       dashRefreshRef.current = setTimeout(() => {
         router.refresh();
-      }, 300);
+      }, 250);
     };
 
-    const channel = supabase
-      .channel(`dashboard-live-${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "group_invitations" },
-        async () => {
-          const { data } = await supabase.rpc("get_my_pending_invitations");
-          if (data) setInvitations(data as IncomingInvitation[]);
-          scheduleRefresh();
-        }
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "groups" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "group_members" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "components" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_bundles" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contributions" }, scheduleRefresh)
-      .subscribe();
+    async function connectRealtime() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token);
+      }
+
+      channel = supabase
+        .channel(`dashboard-live-${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "group_invitations" },
+          async () => {
+            const { data } = await supabase.rpc("get_my_pending_invitations");
+            if (data) setInvitations(data as IncomingInvitation[]);
+            scheduleRefresh();
+          }
+        )
+        .on("postgres_changes", { event: "*", schema: "public", table: "groups" }, scheduleRefresh)
+        .on("postgres_changes", { event: "*", schema: "public", table: "group_members" }, scheduleRefresh)
+        .on("postgres_changes", { event: "*", schema: "public", table: "components" }, scheduleRefresh)
+        .on("postgres_changes", { event: "*", schema: "public", table: "order_bundles" }, scheduleRefresh)
+        .on("postgres_changes", { event: "*", schema: "public", table: "contributions" }, scheduleRefresh)
+        .subscribe();
+    }
+
+    connectRealtime();
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") scheduleRefresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
       if (dashRefreshRef.current) clearTimeout(dashRefreshRef.current);
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [router, supabase, user.id]);
 

@@ -11,6 +11,8 @@ import type {
 import type { GroupNotification } from "@/lib/notify";
 import GroupWorkspace from "@/components/GroupWorkspace";
 
+export const dynamic = "force-dynamic";
+
 export default async function GroupPage({
   params,
 }: {
