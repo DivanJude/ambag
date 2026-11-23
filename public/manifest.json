@@ -1,0 +1,16 @@
+{
+  "name": "Ambag — Group Hardware, Payment & Budget Tracker",
+  "short_name": "Ambag",
+  "description": "Track group project components, order bundles, shared budgets, wallets, and savings goals.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
