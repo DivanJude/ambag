@@ -39,7 +39,7 @@ interface ComponentsTabProps {
   onRefresh: () => void;
 }
 
-type FilterType = "all" | "selected" | "unpaid" | "to_deliver" | "bundled";
+type FilterType = "all" | "selected" | "unselected" | "bundled" | "unpaid" | "to_deliver";
 
 const NEW_CATEGORY_SENTINEL = "__new_category__";
 
@@ -159,10 +159,30 @@ export default function ComponentsTab({
     [components]
   );
 
+  const tabCounts = useMemo(() => {
+    const selectedCount = standaloneComponents.filter((c) => c.selected).length;
+    const unselectedCount = standaloneComponents.filter((c) => !c.selected).length;
+    const unpaidCount =
+      standaloneComponents.filter((c) => c.selected && c.payment_status === "Unpaid").length +
+      bundles.filter((b) => b.payment_status === "Unpaid").length;
+    const toDeliverCount =
+      standaloneComponents.filter((c) => c.selected && c.delivery_status !== "Delivered").length +
+      bundles.filter((b) => b.delivery_status !== "Delivered").length;
+    return {
+      all: standaloneComponents.length,
+      selected: selectedCount,
+      unselected: unselectedCount,
+      bundled: bundles.length,
+      unpaid: unpaidCount,
+      toDeliver: toDeliverCount,
+    };
+  }, [standaloneComponents, bundles]);
+
   const filteredStandalone = useMemo(() => {
     return standaloneComponents.filter((c) => {
       if (filter === "bundled") return false;
       if (filter === "selected" && !c.selected) return false;
+      if (filter === "unselected" && c.selected) return false;
       if (filter === "unpaid" && (!c.selected || c.payment_status !== "Unpaid")) return false;
       if (filter === "to_deliver" && (!c.selected || c.delivery_status === "Delivered")) return false;
       if (search.trim()) {
@@ -178,6 +198,7 @@ export default function ComponentsTab({
   }, [standaloneComponents, filter, search]);
 
   const filteredBundles = useMemo(() => {
+    if (filter === "unselected" || filter === "selected") return [];
     return bundles.filter((b) => {
       if (filter === "unpaid" && b.payment_status !== "Unpaid") return false;
       if (filter === "to_deliver" && b.delivery_status === "Delivered") return false;
@@ -198,12 +219,23 @@ export default function ComponentsTab({
 
   const groupedByCategory = useMemo(() => {
     const map = new Map<string, ComponentItem[]>();
+    const unselectedItems: ComponentItem[] = [];
+
     for (const c of filteredStandalone) {
+      if (!c.selected) {
+        unselectedItems.push(c);
+        continue;
+      }
       const list = map.get(c.category) ?? [];
       list.push(c);
       map.set(c.category, list);
     }
-    return Array.from(map.entries()).sort(([a], [b]) => compareCategories(a, b));
+
+    const sorted = Array.from(map.entries()).sort(([a], [b]) => compareCategories(a, b));
+    if (unselectedItems.length > 0) {
+      sorted.push(["Unselected", unselectedItems]);
+    }
+    return sorted;
   }, [filteredStandalone]);
 
   function openNewComponentModal() {
@@ -501,30 +533,45 @@ export default function ComponentsTab({
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
+      {/* Toolbar & Well-Arranged Filter Tabs */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-xl bg-slate-900/85 border border-slate-800/80">
           {(
             [
-              ["all", "All"],
-              ["selected", "Selected"],
-              ["bundled", `Order Bundles (${bundles.length})`],
-              ["unpaid", "Unpaid"],
-              ["to_deliver", "To Deliver"],
-            ] as [FilterType, string][]
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
-                filter === key
-                  ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                  : "bg-slate-900/80 text-slate-400 border border-slate-800 hover:text-slate-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+              ["all", "All", tabCounts.all],
+              ["selected", "Selected", tabCounts.selected],
+              ["unselected", "Unselected", tabCounts.unselected],
+              ["bundled", "Order Bundles", tabCounts.bundled],
+              ["unpaid", "Unpaid", tabCounts.unpaid],
+              ["to_deliver", "To Deliver", tabCounts.toDeliver],
+            ] as [FilterType, string, number][]
+          ).map(([key, label, count]) => {
+            const active = filter === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setFilter(key)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                  active
+                    ? key === "unselected"
+                      ? "bg-slate-700/80 text-white border border-slate-600/80 shadow-sm"
+                      : key === "unpaid"
+                      ? "bg-rose-500/15 text-rose-300 border border-rose-500/30 shadow-sm"
+                      : "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-sm"
+                    : "text-slate-400 border border-transparent hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                <span>{label}</span>
+                <span
+                  className={`num px-1.5 py-0.2 rounded-md text-[10px] ${
+                    active ? "bg-black/30 text-inherit" : "bg-slate-800/90 text-slate-400"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex items-center gap-2">
@@ -748,24 +795,38 @@ export default function ComponentsTab({
                   </thead>
                   <tbody className="divide-y divide-zinc-800/60">
                     {groupedByCategory.map(([category, items]) => {
-                      const catSubtotal = items
-                        .filter((i) => i.selected)
-                        .reduce((s, i) => s + getComponentTotal(i), 0);
+                      const isUnselectedGroup = category === "Unselected";
+                      const catSubtotal = items.reduce(
+                        (s, i) => s + getComponentTotal(i),
+                        0
+                      );
 
                       return (
                         <Fragment key={category}>
                           {/* Category Section Divider Row */}
-                          <tr className="bg-zinc-900/75 border-y border-zinc-800/80">
+                          <tr
+                            className={`border-y border-slate-800/80 ${
+                              isUnselectedGroup ? "bg-slate-900/90" : "bg-slate-900/65"
+                            }`}
+                          >
                             <td colSpan={totalColCount} className="py-2.5 px-4">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-300/90">
+                                <span
+                                  className={`text-[11px] font-semibold uppercase tracking-wider ${
+                                    isUnselectedGroup
+                                      ? "text-slate-400"
+                                      : "text-emerald-300/90"
+                                  }`}
+                                >
                                   {category}
-                                  <span className="ml-2 text-zinc-500 font-normal normal-case tnum">
-                                    ({items.length} item{items.length === 1 ? "" : "s"})
+                                  <span className="ml-2 text-slate-500 font-normal normal-case tnum">
+                                    ({items.length} item{items.length === 1 ? "" : "s"}
+                                    {isUnselectedGroup ? " — excluded from budget" : ""})
                                   </span>
                                 </span>
-                                <span className="num text-[11px] font-medium text-zinc-400">
-                                  Subtotal: {formatCurrency(catSubtotal, currency)}
+                                <span className="num text-[11px] font-medium text-slate-400">
+                                  {isUnselectedGroup ? "Excluded value: " : "Subtotal: "}
+                                  {formatCurrency(catSubtotal, currency)}
                                 </span>
                               </div>
                             </td>
@@ -816,9 +877,14 @@ export default function ComponentsTab({
                                 </td>
                                 <td className="py-3 px-3 align-middle">
                                   <div className="flex items-center gap-1.5 min-w-0">
-                                    <span className="font-medium text-zinc-100 truncate">
+                                    <span className="font-medium text-slate-100 truncate">
                                       {c.name}
                                     </span>
+                                    {isUnselectedGroup && (
+                                      <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 shrink-0">
+                                        {c.category}
+                                      </span>
+                                    )}
                                     {c.store_url && (
                                       <a
                                         href={c.store_url}

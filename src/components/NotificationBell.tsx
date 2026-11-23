@@ -87,7 +87,7 @@ export default function NotificationBell({
 
   const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
   const unreadCount = notifications.filter(
-    (n) => n.actor_user_id !== currentUserId && new Date(n.created_at).getTime() > lastReadMs
+    (n) => new Date(n.created_at).getTime() > lastReadMs
   ).length;
 
   async function markAllRead() {
@@ -109,13 +109,17 @@ export default function NotificationBell({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          title="Group Activity & Notifications"
-          className="relative p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition cursor-pointer"
+          title={
+            unreadCount > 0
+              ? `${unreadCount} unread group notification${unreadCount === 1 ? "" : "s"}`
+              : "Group Activity & Notifications"
+          }
+          className="relative p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
         >
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
-            <span className="num absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-zinc-950 text-[10px] font-bold flex items-center justify-center ring-2 ring-[#09090b]">
-              {unreadCount > 9 ? "9+" : unreadCount}
+            <span className="num absolute -top-2 -right-2 min-w-[20px] h-[20px] px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none flex items-center justify-center shadow-md shadow-rose-500/40 ring-2 ring-[#0b0d12]">
+              {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
         </button>
@@ -145,19 +149,17 @@ export default function NotificationBell({
                 </div>
               ) : (
                 notifications.map((n) => {
-                  const isUnread =
-                    n.actor_user_id !== currentUserId &&
-                    new Date(n.created_at).getTime() > lastReadMs;
+                  const isUnread = new Date(n.created_at).getTime() > lastReadMs;
                   return (
                     <div
                       key={n.id}
                       className={`px-4 py-3 text-xs flex items-start gap-2.5 ${
-                        isUnread ? "bg-emerald-500/5" : ""
+                        isUnread ? "bg-rose-500/5" : ""
                       }`}
                     >
                       <span
                         className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${
-                          isUnread ? "bg-emerald-400" : "bg-zinc-700"
+                          isUnread ? "bg-rose-400" : "bg-slate-700"
                         }`}
                       />
                       <div className="min-w-0 flex-1 space-y-0.5">
