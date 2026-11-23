@@ -10,6 +10,7 @@ import type {
   ComponentItem,
   Contribution,
   Group,
+  GroupInvitation,
   GroupMember,
   OrderBundle,
 } from "@/lib/types";
@@ -47,6 +48,7 @@ interface GroupWorkspaceProps {
   initialContributions: Contribution[];
   initialNotifications: GroupNotification[];
   initialLastReadAt: string | null;
+  initialInvitations: GroupInvitation[];
 }
 
 export default function GroupWorkspace({
@@ -60,6 +62,7 @@ export default function GroupWorkspace({
   initialContributions,
   initialNotifications,
   initialLastReadAt,
+  initialInvitations,
 }: GroupWorkspaceProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -752,6 +755,7 @@ export default function GroupWorkspace({
             canEdit={canEdit}
             members={initialMembers}
             contributions={initialContributions}
+            invitations={initialInvitations}
             onRefresh={refresh}
           />
         )}

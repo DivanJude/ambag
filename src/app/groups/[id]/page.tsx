@@ -4,6 +4,7 @@ import type {
   ComponentItem,
   Contribution,
   Group,
+  GroupInvitation,
   GroupMember,
   OrderBundle,
 } from "@/lib/types";
@@ -27,7 +28,7 @@ export default async function GroupPage({
   }
 
   // Execute ALL queries in one single parallel round-trip (eliminates waterfall)
-  const [gRes, mRes, cRes, bRes, pRes, nRes, rRes, profRes] = await Promise.all([
+  const [gRes, mRes, cRes, bRes, pRes, nRes, rRes, profRes, invRes] = await Promise.all([
     supabase.from("groups").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("group_members")
@@ -64,6 +65,12 @@ export default async function GroupPage({
       .eq("user_id", user.id)
       .maybeSingle(),
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    supabase
+      .from("group_invitations")
+      .select("*")
+      .eq("group_id", id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false }),
   ]);
 
   if (!gRes.data) {
@@ -90,6 +97,7 @@ export default async function GroupPage({
       initialContributions={(pRes.data ?? []) as Contribution[]}
       initialNotifications={(nRes.data ?? []) as GroupNotification[]}
       initialLastReadAt={rRes.data?.last_read_at ?? null}
+      initialInvitations={(invRes.data ?? []) as GroupInvitation[]}
     />
   );
 }

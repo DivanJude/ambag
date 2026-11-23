@@ -6,6 +6,7 @@ import type {
   Contribution,
   Group,
   GroupMember,
+  IncomingInvitation,
   OrderBundle,
 } from "@/lib/types";
 import GroupsDashboard, { type DashboardGroupCard } from "@/components/GroupsDashboard";
@@ -21,13 +22,14 @@ export default async function HomePage() {
   }
 
   // Run all queries in a single parallel round-trip (RLS automatically scopes rows to user's groups)
-  const [profRes, gRes, mRes, cRes, bRes, pRes] = await Promise.all([
+  const [profRes, gRes, mRes, cRes, bRes, pRes, invRes] = await Promise.all([
     supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).maybeSingle(),
     supabase.from("groups").select("*").order("created_at", { ascending: false }),
     supabase.from("group_members").select("*"),
     supabase.from("components").select("*"),
     supabase.from("order_bundles").select("*"),
     supabase.from("contributions").select("*"),
+    supabase.rpc("get_my_pending_invitations"),
   ]);
 
   const groups = (gRes.data ?? []) as Group[];
@@ -69,6 +71,7 @@ export default async function HomePage() {
         avatarUrl: profRes.data?.avatar_url ?? null,
       }}
       initialGroups={cards}
+      initialInvitations={((invRes.data as IncomingInvitation[] | null) ?? [])}
     />
   );
 }

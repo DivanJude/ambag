@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/finance";
 import { logGroupNotification } from "@/lib/notify";
-import type { Contribution, GroupMember, MemberRole } from "@/lib/types";
+import type { Contribution, GroupInvitation, GroupMember, MemberRole } from "@/lib/types";
 import SelectDropdown, { type DropdownOption } from "./SelectDropdown";
 import ConfirmModal from "./ConfirmModal";
 import {
@@ -33,6 +33,7 @@ interface HistoryAndMembersTabProps {
   canEdit: boolean;
   members: GroupMember[];
   contributions: Contribution[];
+  invitations: GroupInvitation[];
   onRefresh: () => void;
 }
 
@@ -59,6 +60,7 @@ export default function HistoryAndMembersTab({
   canEdit,
   members,
   contributions,
+  invitations,
   onRefresh,
 }: HistoryAndMembersTabProps) {
   const router = useRouter();
@@ -184,27 +186,52 @@ export default function HistoryAndMembersTab({
       return;
     }
 
-    const res = data as { display_name: string; email: string | null; linked: boolean };
+    const res = data as {
+      status: "invited" | "placeholder";
+      display_name: string;
+      email: string | null;
+      has_account: boolean;
+    };
+
     await logGroupNotification(supabase, {
       groupId,
       actorUserId: currentUserId,
       actorName,
-      actionType: "member_added",
-      message: `${actorName} added ${res.display_name}${res.email ? ` (${res.email})` : ""} as ${newMemberRole}`,
+      actionType: res.status === "invited" ? "member_invited" : "member_added",
+      message:
+        res.status === "invited"
+          ? `${actorName} invited ${res.display_name} (${res.email}) as ${newMemberRole} — awaiting confirmation`
+          : `${actorName} added ${res.display_name} as an offline placeholder (${newMemberRole})`,
     });
 
     setAddMemberFeedback({
       type: "success",
-      text: res.linked
-        ? `Added ${res.display_name} — automatically linked to their existing Ambag account!`
-        : res.email
-          ? `Added ${res.display_name} — will auto-link when ${res.email} signs in.`
-          : `Added ${res.display_name} as an unclaimed seat.`,
+      text:
+        res.status === "invited"
+          ? res.has_account
+            ? `Invitation sent to ${res.email} — they'll see a notification to accept or decline.`
+            : `Invitation saved for ${res.email} — they'll be asked to confirm when they sign up.`
+          : `Added ${res.display_name} as an offline placeholder seat (no email).`,
     });
 
     setNewMemberName("");
     setNewMemberEmail("");
     setNewMemberRole("viewer");
+    setBusyId(null);
+    onRefresh();
+  }
+
+  async function handleCancelInvitation(inv: GroupInvitation) {
+    if (!isLeader) return;
+    setBusyId(inv.id);
+    await supabase.from("group_invitations").delete().eq("id", inv.id);
+    await logGroupNotification(supabase, {
+      groupId,
+      actorUserId: currentUserId,
+      actorName,
+      actionType: "invitation_cancelled",
+      message: `${actorName} cancelled the pending invitation for ${inv.display_name} (${inv.invited_email})`,
+    });
     setBusyId(null);
     onRefresh();
   }
@@ -514,10 +541,48 @@ export default function HistoryAndMembersTab({
                 ))}
               </div>
 
+              {/* Pending Invitations awaiting confirmation */}
+              {invitations.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-300/90 flex items-center gap-1.5">
+                    <Clock className="h-3 w-3" /> Pending Confirmation ({invitations.length})
+                  </p>
+                  {invitations.map((inv) => (
+                    <div
+                      key={inv.id}
+                      className="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-white truncate">
+                            {inv.display_name}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] capitalize">
+                            {inv.role}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate">{inv.invited_email}</p>
+                      </div>
+                      {isLeader && (
+                        <button
+                          type="button"
+                          disabled={busyId === inv.id}
+                          onClick={() => handleCancelInvitation(inv)}
+                          title="Cancel invitation"
+                          className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-[11px] text-slate-300 hover:text-rose-300 transition cursor-pointer shrink-0"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {isLeader && (
                 <form onSubmit={handleAddMember} className="space-y-2.5 pt-2 border-t border-slate-800/80">
                   <p className="text-[11px] font-medium text-slate-400">
-                    Add Member (by name, email, or both)
+                    Invite Member (sends confirmation request via email)
                   </p>
                   <div className="space-y-2">
                     <input
@@ -530,7 +595,7 @@ export default function HistoryAndMembersTab({
                       type="email"
                       value={newMemberEmail}
                       onChange={(e) => setNewMemberEmail(e.target.value)}
-                      placeholder="Email (auto-links account, e.g. leonard@gmail.com)"
+                      placeholder="Email to notify & request confirmation"
                       className="w-full px-3 py-1.5 rounded-lg bg-[#161a24] border border-slate-700/70 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
                     />
                     <div className="flex items-center gap-2">
@@ -546,7 +611,8 @@ export default function HistoryAndMembersTab({
                         disabled={busyId === "add-member" || (!newMemberName.trim() && !newMemberEmail.trim())}
                         className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold cursor-pointer disabled:opacity-50 transition"
                       >
-                        <UserPlus className="h-3.5 w-3.5" /> Add Member
+                        <UserPlus className="h-3.5 w-3.5" />
+                        {newMemberEmail.trim() ? "Send Invite" : "Add Placeholder"}
                       </button>
                     </div>
                   </div>

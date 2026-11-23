@@ -95,6 +95,31 @@ export interface Contribution {
   created_at: string;
 }
 
+export interface GroupInvitation {
+  id: string;
+  group_id: string;
+  invited_by: string;
+  invited_by_name: string;
+  display_name: string;
+  invited_email: string;
+  invited_user_id: string | null;
+  role: "viewer" | "editor";
+  status: "pending" | "accepted" | "declined";
+  created_at: string;
+}
+
+export interface IncomingInvitation {
+  id: string;
+  group_id: string;
+  group_name: string;
+  group_description: string | null;
+  invited_by_name: string;
+  display_name: string;
+  invited_email: string;
+  role: "viewer" | "editor";
+  created_at: string;
+}
+
 export interface MemberFinancialSummary {
   member: GroupMember;
   individualBill: number;

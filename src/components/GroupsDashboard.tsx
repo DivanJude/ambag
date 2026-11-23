@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/finance";
 import { useLockBodyScroll } from "@/lib/useLockBodyScroll";
-import type { Group, GroupMode, MemberRole } from "@/lib/types";
+import type { Group, GroupMode, IncomingInvitation, MemberRole } from "@/lib/types";
 import SelectDropdown from "./SelectDropdown";
 import DatePicker from "./DatePicker";
 import ConfirmModal from "./ConfirmModal";
@@ -29,6 +29,9 @@ import {
   Trash2,
   Target,
   User as UserIcon,
+  Mail,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 export interface DashboardGroupCard {
@@ -60,13 +63,17 @@ interface GroupPreview {
 export default function GroupsDashboard({
   user,
   initialGroups,
+  initialInvitations,
 }: {
   user: { id: string; email: string; name: string; avatarUrl: string | null };
   initialGroups: DashboardGroupCard[];
+  initialInvitations: IncomingInvitation[];
 }) {
   const router = useRouter();
   const supabase = createClient();
 
+  const [invitations, setInvitations] = useState<IncomingInvitation[]>(initialInvitations);
+  const [respondingInvId, setRespondingInvId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<GroupMode>("project");
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -75,6 +82,55 @@ export default function GroupsDashboard({
   const [seeding, setSeeding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setInvitations(initialInvitations);
+  }, [initialInvitations]);
+
+  // Live updates when someone sends this user a new invitation
+  useEffect(() => {
+    const channel = supabase
+      .channel(`user-invitations-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "group_invitations",
+        },
+        async () => {
+          const { data } = await supabase.rpc("get_my_pending_invitations");
+          if (data) setInvitations(data as IncomingInvitation[]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, user.id]);
+
+  async function handleRespondInvitation(inv: IncomingInvitation, accept: boolean) {
+    setRespondingInvId(inv.id);
+    setError(null);
+    const { data, error: rpcErr } = await supabase.rpc("respond_to_group_invitation", {
+      p_invitation_id: inv.id,
+      p_accept: accept,
+    });
+    if (rpcErr) {
+      setError(rpcErr.message);
+      setRespondingInvId(null);
+      return;
+    }
+    setInvitations((prev) => prev.filter((item) => item.id !== inv.id));
+    setRespondingInvId(null);
+    if (accept && data) {
+      router.push(`/groups/${data}`);
+      router.refresh();
+    } else {
+      router.refresh();
+    }
+  }
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -321,6 +377,78 @@ export default function GroupsDashboard({
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-7">
+        {/* Pending Group Invitations Notification Banner */}
+        {invitations.length > 0 && (
+          <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/8 p-4 sm:p-5 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-300">
+                <span className="h-6 w-6 rounded-lg bg-emerald-500/20 border border-emerald-500/35 flex items-center justify-center">
+                  <Mail className="h-3.5 w-3.5" />
+                </span>
+                <span>
+                  Pending Project Invitation{invitations.length === 1 ? "" : "s"}
+                </span>
+                <span className="num px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                  {invitations.length}
+                </span>
+              </div>
+              <span className="text-[11px] text-slate-400">
+                Confirm before joining
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {invitations.map((inv) => {
+                const isBusy = respondingInvId === inv.id;
+                return (
+                  <div
+                    key={inv.id}
+                    className="p-3.5 rounded-xl bg-[#121621]/90 border border-slate-800/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-white">
+                          {inv.group_name}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[11px] capitalize text-slate-300">
+                          {inv.role}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        <strong className="text-slate-200">{inv.invited_by_name}</strong> invited you to join this project group.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => handleRespondInvitation(inv, true)}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                      >
+                        {isBusy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        )}
+                        Accept & Join
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => handleRespondInvitation(inv, false)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 border border-slate-700 hover:border-rose-500/40 text-xs text-slate-300 hover:text-rose-300 transition cursor-pointer disabled:opacity-50"
+                      >
+                        <XCircle className="h-3.5 w-3.5" /> Decline
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Header & Category Tabs */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-3">
