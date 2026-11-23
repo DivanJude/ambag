@@ -10,6 +10,7 @@ import type { Group, GroupMode, MemberRole } from "@/lib/types";
 import SelectDropdown from "./SelectDropdown";
 import DatePicker from "./DatePicker";
 import ConfirmModal from "./ConfirmModal";
+import EditProfileModal from "./EditProfileModal";
 import {
   Plus,
   Users,
@@ -60,7 +61,7 @@ export default function GroupsDashboard({
   user,
   initialGroups,
 }: {
-  user: { id: string; email: string; name: string };
+  user: { id: string; email: string; name: string; avatarUrl: string | null };
   initialGroups: DashboardGroupCard[];
 }) {
   const router = useRouter();
@@ -69,6 +70,7 @@ export default function GroupsDashboard({
   const [activeTab, setActiveTab] = useState<GroupMode>("project");
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [deletingCard, setDeletingCard] = useState<DashboardGroupCard | null>(null);
   const [seeding, setSeeding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -281,16 +283,30 @@ export default function GroupsDashboard({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-200">
-                {user.name.slice(0, 1).toUpperCase()}
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setShowEditProfile(true)}
+              title="Edit Profile"
+              className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-800/80 border border-transparent hover:border-slate-700/80 transition cursor-pointer"
+            >
+              <div className="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 overflow-hidden flex items-center justify-center text-xs font-semibold text-slate-200 shrink-0">
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  user.name.slice(0, 1).toUpperCase()
+                )}
               </div>
               <div className="text-left hidden sm:block">
                 <p className="text-xs font-medium text-slate-100 leading-tight">{user.name}</p>
-                <p className="text-[11px] text-slate-500 leading-tight">{user.email}</p>
+                <p className="text-[11px] text-slate-500 leading-tight">Edit profile</p>
               </div>
-            </div>
+            </button>
             <button
               onClick={handleSignOut}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-medium text-slate-300 transition cursor-pointer"
@@ -977,6 +993,13 @@ export default function GroupsDashboard({
           </div>
         </div>
       )}
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        open={showEditProfile}
+        user={user}
+        onClose={() => setShowEditProfile(false)}
+        onSaved={() => router.refresh()}
+      />
     </div>
   );
 }

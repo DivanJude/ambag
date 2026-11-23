@@ -96,9 +96,9 @@ export default function GroupWorkspace({
   const availablePct =
     financials.totalProjectCost > 0
       ? Math.min(
-          100 - spentPct,
-          (Math.max(financials.totalAvailableFunds, 0) / financials.totalProjectCost) * 100
-        )
+        100 - spentPct,
+        (Math.max(financials.totalAvailableFunds, 0) / financials.totalProjectCost) * 100
+      )
       : 0;
 
   const onlineSpentPct =
@@ -234,11 +234,10 @@ export default function GroupWorkspace({
                   {initialGroup.name}
                 </h1>
                 <span
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium ${
-                    isSavings
-                      ? "bg-violet-500/12 text-violet-300"
-                      : "bg-emerald-500/12 text-emerald-300"
-                  }`}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-medium ${isSavings
+                    ? "bg-violet-500/12 text-violet-300"
+                    : "bg-emerald-500/12 text-emerald-300"
+                    }`}
                 >
                   {isSavings ? "Personal Savings" : "Project Group"}
                 </span>
@@ -288,11 +287,10 @@ export default function GroupWorkspace({
 
             <button
               onClick={() => setShowPaymentModal(true)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer shadow-sm transition ${
-                isSavings
-                  ? "bg-violet-500 hover:bg-violet-400 text-white shadow-violet-500/20"
-                  : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-500/20"
-              }`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer shadow-sm transition ${isSavings
+                ? "bg-violet-500 hover:bg-violet-400 text-white shadow-violet-500/20"
+                : "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-500/20"
+                }`}
             >
               <Plus className="h-3.5 w-3.5" />
               {canEdit
@@ -308,13 +306,12 @@ export default function GroupWorkspace({
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-1 border-t border-zinc-800/60">
           <button
             onClick={() => setTab("overview")}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${
-              tab === "overview"
-                ? isSavings
-                  ? "border-violet-400 text-violet-300"
-                  : "border-emerald-400 text-emerald-300"
-                : "border-transparent text-zinc-400 hover:text-zinc-200"
-            }`}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${tab === "overview"
+              ? isSavings
+                ? "border-violet-400 text-violet-300"
+                : "border-emerald-400 text-emerald-300"
+              : "border-transparent text-zinc-400 hover:text-zinc-200"
+              }`}
           >
             {isSavings ? <PiggyBank className="h-3.5 w-3.5" /> : <Wallet className="h-3.5 w-3.5" />}
             {isSavings ? "Savings Overview" : "Overview & Budget"}
@@ -323,11 +320,10 @@ export default function GroupWorkspace({
           {!isSavings && (
             <button
               onClick={() => setTab("components")}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${
-                tab === "components"
-                  ? "border-emerald-400 text-emerald-300"
-                  : "border-transparent text-zinc-400 hover:text-zinc-200"
-              }`}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${tab === "components"
+                ? "border-emerald-400 text-emerald-300"
+                : "border-transparent text-zinc-400 hover:text-zinc-200"
+                }`}
             >
               <Layers className="h-3.5 w-3.5" />
               Components & Bundles
@@ -341,13 +337,12 @@ export default function GroupWorkspace({
 
           <button
             onClick={() => setTab("history")}
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${
-              tab === "history"
-                ? isSavings
-                  ? "border-violet-400 text-violet-300"
-                  : "border-emerald-400 text-emerald-300"
-                : "border-transparent text-zinc-400 hover:text-zinc-200"
-            }`}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium border-b-2 transition cursor-pointer ${tab === "history"
+              ? isSavings
+                ? "border-violet-400 text-violet-300"
+                : "border-emerald-400 text-emerald-300"
+              : "border-transparent text-zinc-400 hover:text-zinc-200"
+              }`}
           >
             <History className="h-3.5 w-3.5" />
             {isSavings ? "Deposit History & Settings" : "History & Members"}
@@ -413,9 +408,8 @@ export default function GroupWorkspace({
                     </button>
                   )}
                   <span
-                    className={`num text-2xl sm:text-3xl font-semibold ${
-                      isSavings ? "text-violet-400" : "text-emerald-400"
-                    }`}
+                    className={`num text-2xl sm:text-3xl font-semibold ${isSavings ? "text-violet-400" : "text-emerald-400"
+                      }`}
                   >
                     {financials.progressPercent}%
                   </span>
@@ -555,11 +549,10 @@ export default function GroupWorkspace({
                   {isSavings ? "Approved Deposits" : `Unpaid Items (${financials.unpaidItemsCount})`}
                 </p>
                 <p
-                  className={`num text-xl font-semibold mt-1.5 ${
-                    !isSavings && financials.unpaidItemsTotal > 0
-                      ? "text-rose-400"
-                      : "text-zinc-100"
-                  }`}
+                  className={`num text-xl font-semibold mt-1.5 ${!isSavings && financials.unpaidItemsTotal > 0
+                    ? "text-rose-400"
+                    : "text-zinc-100"
+                    }`}
                 >
                   {isSavings
                     ? `${initialContributions.filter((c) => c.status === "approved").length}`
@@ -638,98 +631,97 @@ export default function GroupWorkspace({
             {/* Individual Member Balances Ledger (Project Groups only — Savings is Personal) */}
             {!isSavings && (
               <div className="fintech-card rounded-2xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-zinc-800/80 flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold text-white">Member Balances Ledger</h2>
-                  <p className="text-[11px] text-zinc-500 mt-0.5">
-                    Equal split across {initialMembers.length} member{initialMembers.length === 1 ? "" : "s"} • Tabular aligned
-                  </p>
+                <div className="px-5 py-4 border-b border-zinc-800/80 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-white">Member Balances Ledger</h2>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">
+                      Equal split across {initialMembers.length} member{initialMembers.length === 1 ? "" : "s"} • Tabular aligned
+                    </p>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-800/80 text-[11px] uppercase tracking-wider text-zinc-500 bg-zinc-950/40">
+                        <th className="py-3 px-5 font-medium">Member</th>
+                        <th className="py-3 px-4 text-right font-medium">Share</th>
+                        <th className="py-3 px-4 text-right font-medium">Online</th>
+                        <th className="py-3 px-4 text-right font-medium">Cash</th>
+                        <th className="py-3 px-4 text-right font-medium">Total Paid</th>
+                        <th className="py-3 px-5 text-right font-medium">Balance Due</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/60">
+                      {financials.memberSummaries.map((row) => {
+                        const pct =
+                          row.individualBill > 0
+                            ? Math.min(100, Math.round((row.totalPaid / row.individualBill) * 100))
+                            : 100;
+                        return (
+                          <tr key={row.member.id} className="hover:bg-zinc-900/40 transition">
+                            <td className="py-3.5 px-5">
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-xs font-semibold text-zinc-200 shrink-0">
+                                  {row.member.display_name.slice(0, 1).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-semibold text-zinc-100">
+                                      {row.member.display_name}
+                                    </span>
+                                    <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] capitalize text-zinc-400">
+                                      {row.member.role}
+                                    </span>
+                                    {row.pendingAmount > 0 && (
+                                      <span className="num px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px]">
+                                        +{formatCurrency(row.pendingAmount, initialGroup.currency)} pending
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className="w-20 h-1 rounded-full bg-zinc-800 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${pct >= 100 ? "bg-emerald-400" : "bg-sky-400"
+                                          }`}
+                                        style={{ width: `${pct}%` }}
+                                      />
+                                    </div>
+                                    <span className="num text-[10px] text-zinc-500">{pct}%</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="num py-3.5 px-4 text-right text-zinc-300 whitespace-nowrap">
+                              {formatCurrency(row.individualBill, initialGroup.currency)}
+                            </td>
+                            <td className="num py-3.5 px-4 text-right text-sky-300 whitespace-nowrap">
+                              {formatCurrency(row.onlinePaid, initialGroup.currency)}
+                            </td>
+                            <td className="num py-3.5 px-4 text-right text-emerald-300 whitespace-nowrap">
+                              {formatCurrency(row.cashPaid, initialGroup.currency)}
+                            </td>
+                            <td className="num py-3.5 px-4 text-right font-semibold text-white whitespace-nowrap">
+                              {formatCurrency(row.totalPaid, initialGroup.currency)}
+                            </td>
+                            <td className="py-3.5 px-5 text-right whitespace-nowrap">
+                              {row.balanceDue > 0.01 ? (
+                                <span className="num inline-flex items-center gap-1 font-semibold text-amber-300">
+                                  <AlertCircle className="h-3.5 w-3.5" />
+                                  {formatCurrency(row.balanceDue, initialGroup.currency)}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
+                                  <CheckCircle2 className="h-3.5 w-3.5" /> Settled
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-zinc-800/80 text-[11px] uppercase tracking-wider text-zinc-500 bg-zinc-950/40">
-                      <th className="py-3 px-5 font-medium">Member</th>
-                      <th className="py-3 px-4 text-right font-medium">Share</th>
-                      <th className="py-3 px-4 text-right font-medium">Online</th>
-                      <th className="py-3 px-4 text-right font-medium">Cash</th>
-                      <th className="py-3 px-4 text-right font-medium">Total Paid</th>
-                      <th className="py-3 px-5 text-right font-medium">Balance Due</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-800/60">
-                    {financials.memberSummaries.map((row) => {
-                      const pct =
-                        row.individualBill > 0
-                          ? Math.min(100, Math.round((row.totalPaid / row.individualBill) * 100))
-                          : 100;
-                      return (
-                        <tr key={row.member.id} className="hover:bg-zinc-900/40 transition">
-                          <td className="py-3.5 px-5">
-                            <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700/80 flex items-center justify-center text-xs font-semibold text-zinc-200 shrink-0">
-                                {row.member.display_name.slice(0, 1).toUpperCase()}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-semibold text-zinc-100">
-                                    {row.member.display_name}
-                                  </span>
-                                  <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] capitalize text-zinc-400">
-                                    {row.member.role}
-                                  </span>
-                                  {row.pendingAmount > 0 && (
-                                    <span className="num px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px]">
-                                      +{formatCurrency(row.pendingAmount, initialGroup.currency)} pending
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <div className="w-20 h-1 rounded-full bg-zinc-800 overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full ${
-                                        pct >= 100 ? "bg-emerald-400" : "bg-sky-400"
-                                      }`}
-                                      style={{ width: `${pct}%` }}
-                                    />
-                                  </div>
-                                  <span className="num text-[10px] text-zinc-500">{pct}%</span>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="num py-3.5 px-4 text-right text-zinc-300 whitespace-nowrap">
-                            {formatCurrency(row.individualBill, initialGroup.currency)}
-                          </td>
-                          <td className="num py-3.5 px-4 text-right text-sky-300 whitespace-nowrap">
-                            {formatCurrency(row.onlinePaid, initialGroup.currency)}
-                          </td>
-                          <td className="num py-3.5 px-4 text-right text-emerald-300 whitespace-nowrap">
-                            {formatCurrency(row.cashPaid, initialGroup.currency)}
-                          </td>
-                          <td className="num py-3.5 px-4 text-right font-semibold text-white whitespace-nowrap">
-                            {formatCurrency(row.totalPaid, initialGroup.currency)}
-                          </td>
-                          <td className="py-3.5 px-5 text-right whitespace-nowrap">
-                            {row.balanceDue > 0.01 ? (
-                              <span className="num inline-flex items-center gap-1 font-semibold text-amber-300">
-                                <AlertCircle className="h-3.5 w-3.5" />
-                                {formatCurrency(row.balanceDue, initialGroup.currency)}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> Settled
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
             )}
           </div>
         )}

@@ -22,7 +22,7 @@ export default async function HomePage() {
 
   // Run all queries in a single parallel round-trip (RLS automatically scopes rows to user's groups)
   const [profRes, gRes, mRes, cRes, bRes, pRes] = await Promise.all([
-    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).maybeSingle(),
     supabase.from("groups").select("*").order("created_at", { ascending: false }),
     supabase.from("group_members").select("*"),
     supabase.from("components").select("*"),
@@ -66,6 +66,7 @@ export default async function HomePage() {
         id: user.id,
         email: user.email ?? "",
         name: profRes.data?.full_name ?? user.email?.split("@")[0] ?? "User",
+        avatarUrl: profRes.data?.avatar_url ?? null,
       }}
       initialGroups={cards}
     />
