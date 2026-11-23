@@ -1,12 +1,17 @@
 @import "tailwindcss";
 
+@theme inline {
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 :root {
   --bg: #09090b;
-  --surface: #121216;
-  --surface-2: #18181d;
-  --border: #27272f;
+  --surface: #111115;
+  --surface-2: #17171d;
+  --border: #25252e;
   --text: #f4f4f5;
-  --muted: #a1a1aa;
+  --muted: #9ca3af;
   --accent: #10b981;
 }
 
@@ -14,8 +19,31 @@ html,
 body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tabular monospace numerals for financial figures, dates, and codes */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.02em;
+}
+
+/* Tabular sans numerals for inline stats */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Subtle fintech card surface */
+.fintech-card {
+  background: linear-gradient(180deg, rgba(24, 24, 30, 0.72) 0%, rgba(16, 16, 20, 0.96) 100%);
+  border: 1px solid rgba(63, 63, 74, 0.45);
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px -12px rgba(0, 0, 0, 0.6);
 }
 
 * {
@@ -23,16 +51,16 @@ body {
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: #09090b;
 }
 ::-webkit-scrollbar-thumb {
-  background: #27272f;
+  background: #272730;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f4a;
+  background: #3f3f4c;
 }

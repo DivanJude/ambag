@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -14,11 +14,13 @@ import {
   LogOut,
   KeyRound,
   Sparkles,
-  ArrowRight,
+  ArrowUpRight,
   Clock,
   AlertCircle,
   Loader2,
   X,
+  Wallet,
+  TrendingUp,
 } from "lucide-react";
 
 export interface DashboardGroupCard {
@@ -63,7 +65,6 @@ export default function GroupsDashboard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Create group state
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [mode, setMode] = useState<GroupMode>("project");
@@ -71,10 +72,17 @@ export default function GroupsDashboard({
   const [targetDate, setTargetDate] = useState("");
   const [extraMembers, setExtraMembers] = useState("");
 
-  // Join group state
   const [inviteCode, setInviteCode] = useState("");
   const [preview, setPreview] = useState<GroupPreview | null>(null);
   const [selectedSeatId, setSelectedSeatId] = useState<string>("");
+
+  const portfolio = useMemo(() => {
+    const totalBudget = initialGroups.reduce((s, g) => s + g.totalCost, 0);
+    const totalCollected = initialGroups.reduce((s, g) => s + g.totalCollected, 0);
+    const totalMyDue = initialGroups.reduce((s, g) => s + Math.max(g.myBalanceDue, 0), 0);
+    const pendingTotal = initialGroups.reduce((s, g) => s + g.pendingCount, 0);
+    return { totalBudget, totalCollected, totalMyDue, pendingTotal };
+  }, [initialGroups]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -116,7 +124,6 @@ export default function GroupsDashboard({
 
       if (gErr || !group) throw gErr ?? new Error("Could not create group");
 
-      // Add creator as Leader
       const { error: mErr } = await supabase.from("group_members").insert({
         group_id: group.id,
         user_id: user.id,
@@ -126,7 +133,6 @@ export default function GroupsDashboard({
       });
       if (mErr) throw mErr;
 
-      // Optional comma-separated teammate names as unclaimed viewer seats
       const parsedNames = extraMembers
         .split(",")
         .map((s) => s.trim())
@@ -188,51 +194,56 @@ export default function GroupsDashboard({
   }
 
   const roleBadgeStyle: Record<MemberRole, string> = {
-    leader: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    editor: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-    viewer: "bg-zinc-800 text-zinc-300 border-zinc-700",
+    leader: "bg-emerald-500/12 text-emerald-300 border-emerald-500/25",
+    editor: "bg-sky-500/12 text-sky-300 border-sky-500/25",
+    viewer: "bg-zinc-800/80 text-zinc-300 border-zinc-700/80",
   };
 
   return (
     <div className="min-h-screen bg-[#09090b]">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-[#09090b]/85 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-[#09090b]/85 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
-              <span className="text-emerald-400 font-bold">A</span>
+            <div className="h-9 w-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shadow-sm shadow-emerald-500/10">
+              <span className="text-emerald-400 font-bold text-base">A</span>
             </div>
             <div>
-              <span className="font-bold text-white tracking-tight">Ambag</span>
-              <span className="hidden sm:inline text-xs text-zinc-500 ml-2">
-                Group Budget & Hardware Tracker
+              <span className="font-semibold text-white tracking-tight text-base">Ambag</span>
+              <span className="hidden sm:inline text-xs text-zinc-500 ml-2.5 pl-2.5 border-l border-zinc-800">
+                Budget & Payment Ledger
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-medium text-zinc-200">{user.name}</p>
-              <p className="text-[11px] text-zinc-500">{user.email}</p>
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-semibold text-zinc-200">
+                {user.name.slice(0, 1).toUpperCase()}
+              </div>
+              <div className="text-left hidden sm:block">
+                <p className="text-xs font-medium text-zinc-100 leading-tight">{user.name}</p>
+                <p className="text-[11px] text-zinc-500 leading-tight">{user.email}</p>
+              </div>
             </div>
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs text-zinc-300 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-300 transition cursor-pointer"
             >
               <LogOut className="h-3.5 w-3.5" />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-        {/* Hero Action Bar */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-7">
+        {/* Header & Primary Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">My Groups</h1>
+            <h1 className="text-2xl font-semibold text-white tracking-tight">Workspace Overview</h1>
             <p className="text-sm text-zinc-400 mt-0.5">
-              Select a group to view components, order bundles, wallets, or savings goals.
+              Manage shared hardware budgets, order bundles, wallets, and savings goals.
             </p>
           </div>
 
@@ -244,7 +255,7 @@ export default function GroupsDashboard({
                 setInviteCode("");
                 setShowJoin(true);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-xs font-medium text-zinc-200 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-xs font-medium text-zinc-200 transition cursor-pointer"
             >
               <KeyRound className="h-3.5 w-3.5 text-zinc-400" />
               Join via Code
@@ -255,13 +266,77 @@ export default function GroupsDashboard({
                 setError(null);
                 setShowCreate(true);
               }}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold transition cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold shadow-sm shadow-emerald-500/20 transition cursor-pointer"
             >
               <Plus className="h-4 w-4" />
-              Create Group
+              New Group
             </button>
           </div>
         </div>
+
+        {/* Portfolio Summary Strip (shown when user has groups) */}
+        {initialGroups.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+            <div className="fintech-card rounded-2xl p-4.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+                  Total Tracked Budget
+                </span>
+                <Wallet className="h-4 w-4 text-zinc-500" />
+              </div>
+              <p className="num text-2xl font-semibold text-white mt-2">
+                {formatCurrency(portfolio.totalBudget)}
+              </p>
+              <p className="text-xs text-zinc-500 mt-1">
+                Across {initialGroups.length} active group{initialGroups.length === 1 ? "" : "s"}
+              </p>
+            </div>
+
+            <div className="fintech-card rounded-2xl p-4.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+                  Total Pooled Funds
+                </span>
+                <TrendingUp className="h-4 w-4 text-emerald-400" />
+              </div>
+              <p className="num text-2xl font-semibold text-emerald-400 mt-2">
+                {formatCurrency(portfolio.totalCollected)}
+              </p>
+              <p className="text-xs text-zinc-500 mt-1">
+                {portfolio.totalBudget > 0
+                  ? `${Math.round((portfolio.totalCollected / portfolio.totalBudget) * 100)}% of combined targets`
+                  : "No targets set yet"}
+              </p>
+            </div>
+
+            <div className="fintech-card rounded-2xl p-4.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
+                  Your Total Balance Due
+                </span>
+                <AlertCircle
+                  className={`h-4 w-4 ${
+                    portfolio.totalMyDue > 0 ? "text-amber-400" : "text-emerald-400"
+                  }`}
+                />
+              </div>
+              <p
+                className={`num text-2xl font-semibold mt-2 ${
+                  portfolio.totalMyDue > 0 ? "text-amber-300" : "text-emerald-400"
+                }`}
+              >
+                {formatCurrency(portfolio.totalMyDue)}
+              </p>
+              <p className="text-xs text-zinc-500 mt-1">
+                {portfolio.pendingTotal > 0
+                  ? `${portfolio.pendingTotal} pending proof${portfolio.pendingTotal === 1 ? "" : "s"} awaiting review`
+                  : portfolio.totalMyDue > 0
+                  ? "Remaining across your groups"
+                  : "All your balances are settled"}
+              </p>
+            </div>
+          </div>
+        )}
 
         {error && !showCreate && !showJoin && (
           <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300">
@@ -269,16 +344,16 @@ export default function GroupsDashboard({
           </div>
         )}
 
-        {/* BROwsers Seed Callout if user has no groups yet (or wants to import it) */}
+        {/* Empty State or Group Grid */}
         {initialGroups.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-8 sm:p-10 text-center space-y-5">
-            <div className="mx-auto h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center">
+          <div className="fintech-card rounded-2xl p-8 sm:p-12 text-center space-y-5">
+            <div className="mx-auto h-12 w-12 rounded-2xl bg-emerald-500/12 border border-emerald-500/25 flex items-center justify-center">
               <Sparkles className="h-6 w-6 text-emerald-400" />
             </div>
             <div className="max-w-md mx-auto space-y-1.5">
               <h2 className="text-lg font-semibold text-white">No groups yet</h2>
-              <p className="text-sm text-zinc-400">
-                Create a new Project Tracker or Savings Goal, join a teammate’s group with an invite code, or load your real <strong>BROwsers Thesis Hardware & Payment Tracker</strong> sheet data right away.
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Start a new Project Tracker or Savings Goal, join a teammate’s group with an invite code, or load your real <strong className="text-zinc-200">BROwsers Thesis Hardware & Payment Tracker</strong> sheet data right away.
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
@@ -288,7 +363,7 @@ export default function GroupsDashboard({
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm font-semibold transition cursor-pointer disabled:opacity-50"
               >
                 {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Load BROwsers Thesis Data (₱26,802)
+                Load BROwsers Thesis Data (<span className="num">₱26,802</span>)
               </button>
               <button
                 onClick={() => setShowCreate(true)}
@@ -300,24 +375,40 @@ export default function GroupsDashboard({
             </div>
           </div>
         ) : (
-          <>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                Your Groups
+              </h2>
+              {!initialGroups.some((g) => g.group.name.includes("BROwsers")) && (
+                <button
+                  onClick={handleSeedBrowsers}
+                  disabled={seeding}
+                  className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-emerald-400 transition cursor-pointer"
+                >
+                  {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  Import BROwsers Thesis sample
+                </button>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {initialGroups.map((card) => (
                 <Link
                   key={card.group.id}
                   href={`/groups/${card.group.id}`}
-                  className="group rounded-2xl border border-zinc-800/90 bg-[#121216] hover:border-emerald-500/40 hover:bg-[#15151b] p-5 flex flex-col justify-between gap-4 transition"
+                  className="fintech-card group rounded-2xl hover:border-emerald-500/45 p-5 flex flex-col justify-between gap-4 transition"
                 >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                  <div className="space-y-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
                         {card.group.mode === "project" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 text-[11px] font-medium">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/12 text-emerald-300 text-[11px] font-medium">
                             <Layers className="h-3 w-3" /> Project
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-300 text-[11px] font-medium">
-                            <PiggyBank className="h-3 w-3" /> Savings Goal
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/12 text-violet-300 text-[11px] font-medium">
+                            <PiggyBank className="h-3 w-3" /> Savings
                           </span>
                         )}
                         <span
@@ -326,33 +417,34 @@ export default function GroupsDashboard({
                           {card.role}
                         </span>
                       </div>
-                      <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
+                      <span className="inline-flex items-center gap-1 text-xs text-zinc-500 tnum">
                         <Users className="h-3.5 w-3.5" /> {card.memberCount}
                       </span>
                     </div>
 
                     <div>
-                      <h2 className="text-base font-semibold text-white group-hover:text-emerald-300 transition">
-                        {card.group.name}
-                      </h2>
+                      <h3 className="text-base font-semibold text-white group-hover:text-emerald-300 transition flex items-center justify-between gap-2">
+                        <span className="truncate">{card.group.name}</span>
+                        <ArrowUpRight className="h-4 w-4 shrink-0 text-zinc-600 group-hover:text-emerald-400 transition" />
+                      </h3>
                       {card.group.description && (
-                        <p className="text-xs text-zinc-400 mt-1 line-clamp-2">
+                        <p className="text-xs text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
                           {card.group.description}
                         </p>
                       )}
                     </div>
 
-                    {/* Progress bar */}
-                    <div className="space-y-1.5 pt-1">
-                      <div className="flex items-baseline justify-between text-xs">
-                        <span className="font-semibold text-zinc-100">
+                    {/* Progress block with tabular figures */}
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="num text-lg font-semibold text-white">
                           {formatCurrency(card.totalCollected, card.group.currency)}
                         </span>
-                        <span className="text-zinc-500">
-                          of {formatCurrency(card.totalCost, card.group.currency)} ({card.progressPercent}%)
+                        <span className="num text-xs text-zinc-400">
+                          {card.progressPercent}%
                         </span>
                       </div>
-                      <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                      <div className="h-2 rounded-full bg-zinc-800/90 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all ${
                             card.group.mode === "savings" ? "bg-violet-500" : "bg-emerald-500"
@@ -360,6 +452,12 @@ export default function GroupsDashboard({
                           style={{ width: `${card.progressPercent}%` }}
                         />
                       </div>
+                      <p className="text-[11px] text-zinc-500 flex items-center justify-between">
+                        <span>Target</span>
+                        <span className="num text-zinc-400">
+                          {formatCurrency(card.totalCost, card.group.currency)}
+                        </span>
+                      </p>
                     </div>
                   </div>
 
@@ -367,49 +465,34 @@ export default function GroupsDashboard({
                     <div className="flex items-center gap-2 flex-wrap">
                       {card.myBalanceDue > 0 ? (
                         <span className="text-amber-300 font-medium">
-                          Due: {formatCurrency(card.myBalanceDue, card.group.currency)}
+                          Due <span className="num">{formatCurrency(card.myBalanceDue, card.group.currency)}</span>
                         </span>
                       ) : (
                         <span className="text-emerald-400 font-medium">Settled</span>
                       )}
                       {card.pendingCount > 0 && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px]">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 text-[10px] tnum">
                           <Clock className="h-2.5 w-2.5" /> {card.pendingCount} pending
                         </span>
                       )}
                       {card.unpaidCount > 0 && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 text-[10px]">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 text-[10px] tnum">
                           <AlertCircle className="h-2.5 w-2.5" /> {card.unpaidCount} unpaid
                         </span>
                       )}
                     </div>
-                    <ArrowRight className="h-4 w-4 text-zinc-500 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition" />
                   </div>
                 </Link>
               ))}
             </div>
-
-            {/* Subtle option to load BROwsers demo if not already present */}
-            {!initialGroups.some((g) => g.group.name.includes("BROwsers")) && (
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSeedBrowsers}
-                  disabled={seeding}
-                  className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-emerald-400 transition cursor-pointer"
-                >
-                  {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  Import BROwsers Thesis Hardware sample group
-                </button>
-              </div>
-            )}
-          </>
+          </div>
         )}
       </main>
 
       {/* Create Group Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-[#121216] p-6 space-y-5">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-[#111115] p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Create a New Group</h2>
               <button onClick={() => setShowCreate(false)} className="text-zinc-400 hover:text-white cursor-pointer">
@@ -418,7 +501,6 @@ export default function GroupsDashboard({
             </div>
 
             <form onSubmit={handleCreateGroup} className="space-y-4">
-              {/* Mode selector */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -485,7 +567,7 @@ export default function GroupsDashboard({
                       value={targetAmount}
                       onChange={(e) => setTargetAmount(e.target.value)}
                       placeholder="15000"
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-white focus:outline-none focus:border-violet-500"
+                      className="num w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-white focus:outline-none focus:border-violet-500"
                     />
                   </div>
                   <div>
@@ -494,7 +576,7 @@ export default function GroupsDashboard({
                       type="date"
                       value={targetDate}
                       onChange={(e) => setTargetDate(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-white focus:outline-none focus:border-violet-500"
+                      className="num w-full px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-sm text-white focus:outline-none focus:border-violet-500"
                     />
                   </div>
                 </div>
@@ -512,9 +594,7 @@ export default function GroupsDashboard({
                 />
               </div>
 
-              {error && (
-                <p className="text-xs text-rose-400">{error}</p>
-              )}
+              {error && <p className="text-xs text-rose-400">{error}</p>}
 
               <div className="flex justify-end gap-2 pt-2">
                 <button
@@ -540,8 +620,8 @@ export default function GroupsDashboard({
 
       {/* Join Group Modal */}
       {showJoin && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-[#121216] p-6 space-y-5">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-800 bg-[#111115] p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Join Group via Invite Code</h2>
               <button onClick={() => setShowJoin(false)} className="text-zinc-400 hover:text-white cursor-pointer">
@@ -558,7 +638,7 @@ export default function GroupsDashboard({
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                     placeholder="e.g. A1B2C3D4"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-sm font-mono tracking-widest text-white uppercase focus:outline-none focus:border-emerald-500"
+                    className="num w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-sm tracking-widest text-white uppercase focus:outline-none focus:border-emerald-500"
                   />
                 </div>
                 {error && <p className="text-xs text-rose-400">{error}</p>}
@@ -583,7 +663,7 @@ export default function GroupsDashboard({
             ) : (
               <div className="space-y-4">
                 <div className="p-4 rounded-xl bg-zinc-900 border border-zinc-800">
-                  <p className="text-xs text-zinc-400 uppercase">{preview.mode} group</p>
+                  <p className="text-[11px] text-zinc-400 uppercase tracking-wider">{preview.mode} group</p>
                   <p className="text-base font-semibold text-white mt-0.5">{preview.name}</p>
                 </div>
 

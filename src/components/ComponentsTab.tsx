@@ -480,9 +480,12 @@ export default function ComponentsTab({
                           </span>
                         </div>
                         <p className="text-xs text-zinc-400 mt-0.5">
-                          Items subtotal: {formatCurrency(bundle.items_subtotal, currency)}
+                          Items subtotal:{" "}
+                          <span className="num text-zinc-300">
+                            {formatCurrency(bundle.items_subtotal, currency)}
+                          </span>
                           {diff !== 0 && (
-                            <span className="ml-2 text-amber-300">
+                            <span className="num ml-2 text-amber-300">
                               ({diff > 0 ? "+" : ""}
                               {formatCurrency(diff, currency)} shipping/vouchers delta)
                             </span>
@@ -502,7 +505,7 @@ export default function ComponentsTab({
                       <span className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300">
                         {bundle.delivery_status}
                       </span>
-                      <span className="text-sm font-bold text-emerald-300">
+                      <span className="num text-sm font-semibold text-emerald-300">
                         {formatCurrency(bundle.actual_total, currency)}
                       </span>
                       {canEdit && (
@@ -544,7 +547,7 @@ export default function ComponentsTab({
                                 <span className="text-zinc-500 ml-2">({item.spec_notes})</span>
                               )}
                             </div>
-                            <span className="text-zinc-400 shrink-0">
+                            <span className="num text-zinc-400 shrink-0">
                               {item.quantity} × {formatCurrency(item.unit_price, currency)} ={" "}
                               {formatCurrency(getComponentTotal(item), currency)}
                             </span>
@@ -650,10 +653,10 @@ export default function ComponentsTab({
                                 <p className="text-[11px] text-zinc-500 mt-0.5">{c.spec_notes}</p>
                               )}
                             </td>
-                            <td className="py-3 px-3 text-right text-zinc-400 whitespace-nowrap">
+                            <td className="num py-3 px-3 text-right text-zinc-400 whitespace-nowrap">
                               {c.quantity} × {formatCurrency(c.unit_price, currency)}
                             </td>
-                            <td className="py-3 px-3 text-right font-semibold text-zinc-100 whitespace-nowrap">
+                            <td className="num py-3 px-3 text-right font-semibold text-zinc-100 whitespace-nowrap">
                               {formatCurrency(total, currency)}
                             </td>
                             <td className="py-3 px-3 whitespace-nowrap">
