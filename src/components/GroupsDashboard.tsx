@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -74,7 +74,7 @@ export default function GroupsDashboard({
 
   const [invitations, setInvitations] = useState<IncomingInvitation[]>(initialInvitations);
   const [respondingInvId, setRespondingInvId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<GroupMode>("project");
+  const [activeTab, setActiveTabState] = useState<GroupMode>("project");
   const [showCreate, setShowCreate] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -82,33 +82,62 @@ export default function GroupsDashboard({
   const [seeding, setSeeding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dashRefreshRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Restore last active dashboard tab (?view=project|savings) across refreshes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const saved = params.get("view");
+    if (saved === "savings" || saved === "project") {
+      setActiveTabState(saved);
+    }
+  }, []);
+
+  function setActiveTab(next: GroupMode) {
+    setActiveTabState(next);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("view", next);
+      window.history.replaceState({}, "", url.toString());
+    }
+  }
 
   useEffect(() => {
     setInvitations(initialInvitations);
   }, [initialInvitations]);
 
-  // Live updates when someone sends this user a new invitation
+  // Real-time sync for dashboard cards, balances, and incoming invitations
   useEffect(() => {
+    const scheduleRefresh = () => {
+      if (dashRefreshRef.current) clearTimeout(dashRefreshRef.current);
+      dashRefreshRef.current = setTimeout(() => {
+        router.refresh();
+      }, 300);
+    };
+
     const channel = supabase
-      .channel(`user-invitations-${user.id}`)
+      .channel(`dashboard-live-${user.id}`)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "group_invitations",
-        },
+        { event: "*", schema: "public", table: "group_invitations" },
         async () => {
           const { data } = await supabase.rpc("get_my_pending_invitations");
           if (data) setInvitations(data as IncomingInvitation[]);
+          scheduleRefresh();
         }
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "groups" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "group_members" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "components" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_bundles" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contributions" }, scheduleRefresh)
       .subscribe();
 
     return () => {
+      if (dashRefreshRef.current) clearTimeout(dashRefreshRef.current);
       supabase.removeChannel(channel);
     };
-  }, [supabase, user.id]);
+  }, [router, supabase, user.id]);
 
   async function handleRespondInvitation(inv: IncomingInvitation, accept: boolean) {
     setRespondingInvId(inv.id);

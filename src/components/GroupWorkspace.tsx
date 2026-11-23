@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -67,16 +67,91 @@ export default function GroupWorkspace({
   const router = useRouter();
   const supabase = createClient();
 
-  const [tab, setTab] = useState<"overview" | "components" | "history">("overview");
+  const [tab, setTabState] = useState<"overview" | "components" | "history">("overview");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalAmount, setGoalAmount] = useState(String(initialGroup.target_amount));
   const [goalDate, setGoalDate] = useState(initialGroup.target_date ?? "");
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSavings = initialGroup.mode === "savings";
   const isLeader = myMember?.role === "leader";
   const canEdit = myMember?.role === "leader" || myMember?.role === "editor";
+
+  // Restore last active tab from URL (?tab=...) on mount / refresh
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const saved = params.get("tab");
+    if (saved === "history") {
+      setTabState("history");
+    } else if (saved === "components" && !isSavings) {
+      setTabState("components");
+    } else if (saved === "overview") {
+      setTabState("overview");
+    }
+  }, [isSavings]);
+
+  function setTab(nextTab: "overview" | "components" | "history") {
+    setTabState(nextTab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", nextTab);
+      if (nextTab !== "components") {
+        url.searchParams.delete("filter");
+      }
+      window.history.replaceState({}, "", url.toString());
+    }
+  }
+
+  // Real-time sync across all group tables (debounced to prevent burst refreshes)
+  useEffect(() => {
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        router.refresh();
+      }, 250);
+    };
+
+    const channel = supabase
+      .channel(`group-live-${initialGroup.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "groups", filter: `id=eq.${initialGroup.id}` },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "group_members", filter: `group_id=eq.${initialGroup.id}` },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "components", filter: `group_id=eq.${initialGroup.id}` },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "order_bundles", filter: `group_id=eq.${initialGroup.id}` },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contributions", filter: `group_id=eq.${initialGroup.id}` },
+        scheduleRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "group_invitations", filter: `group_id=eq.${initialGroup.id}` },
+        scheduleRefresh
+      )
+      .subscribe();
+
+    return () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [initialGroup.id, router, supabase]);
 
   const financials = useMemo(
     () =>

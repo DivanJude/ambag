@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, getComponentTotal } from "@/lib/finance";
 import { logGroupNotification } from "@/lib/notify";
@@ -86,8 +86,32 @@ export default function ComponentsTab({
 }: ComponentsTabProps) {
   const supabase = createClient();
 
-  const [filter, setFilter] = useState<FilterType>("all");
+  const [filter, setFilterState] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const saved = params.get("filter") as FilterType | null;
+    if (
+      saved &&
+      ["all", "selected", "unselected", "bundled", "unpaid", "to_deliver"].includes(saved)
+    ) {
+      setFilterState(saved);
+    }
+  }, []);
+
+  function setFilter(nextFilter: FilterType) {
+    setFilterState(nextFilter);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (nextFilter === "all") {
+        url.searchParams.delete("filter");
+      } else {
+        url.searchParams.set("filter", nextFilter);
+      }
+      window.history.replaceState({}, "", url.toString());
+    }
+  }
   const [expandedBundles, setExpandedBundles] = useState<Record<string, boolean>>({});
   const [checkedForBundle, setCheckedForBundle] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
