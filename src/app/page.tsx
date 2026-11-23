@@ -20,31 +20,21 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const [{ data: profile }, { data: groupsData }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
+  // Run all queries in a single parallel round-trip (RLS automatically scopes rows to user's groups)
+  const [profRes, gRes, mRes, cRes, bRes, pRes] = await Promise.all([
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
     supabase.from("groups").select("*").order("created_at", { ascending: false }),
+    supabase.from("group_members").select("*"),
+    supabase.from("components").select("*"),
+    supabase.from("order_bundles").select("*"),
+    supabase.from("contributions").select("*"),
   ]);
 
-  const groups = (groupsData ?? []) as Group[];
-  const groupIds = groups.map((g) => g.id);
-
-  let members: GroupMember[] = [];
-  let components: ComponentItem[] = [];
-  let bundles: OrderBundle[] = [];
-  let contributions: Contribution[] = [];
-
-  if (groupIds.length > 0) {
-    const [mRes, cRes, bRes, pRes] = await Promise.all([
-      supabase.from("group_members").select("*").in("group_id", groupIds),
-      supabase.from("components").select("*").in("group_id", groupIds),
-      supabase.from("order_bundles").select("*").in("group_id", groupIds),
-      supabase.from("contributions").select("*").in("group_id", groupIds),
-    ]);
-    members = (mRes.data ?? []) as GroupMember[];
-    components = (cRes.data ?? []) as ComponentItem[];
-    bundles = (bRes.data ?? []) as OrderBundle[];
-    contributions = (pRes.data ?? []) as Contribution[];
-  }
+  const groups = (gRes.data ?? []) as Group[];
+  const members = (mRes.data ?? []) as GroupMember[];
+  const components = (cRes.data ?? []) as ComponentItem[];
+  const bundles = (bRes.data ?? []) as OrderBundle[];
+  const contributions = (pRes.data ?? []) as Contribution[];
 
   const cards: DashboardGroupCard[] = groups.map((group) => {
     const gMembers = members.filter((m) => m.group_id === group.id);
@@ -75,7 +65,7 @@ export default async function HomePage() {
       user={{
         id: user.id,
         email: user.email ?? "",
-        name: profile?.full_name ?? user.email?.split("@")[0] ?? "User",
+        name: profRes.data?.full_name ?? user.email?.split("@")[0] ?? "User",
       }}
       initialGroups={cards}
     />

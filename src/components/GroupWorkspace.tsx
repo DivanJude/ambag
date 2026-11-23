@@ -215,9 +215,9 @@ export default function GroupWorkspace({
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] pb-16">
+    <div className="min-h-screen pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-zinc-800/80 bg-[#09090b]/90 backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b border-slate-800/70 bg-[#0b0d12]/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <Link

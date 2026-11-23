@@ -26,17 +26,9 @@ export default async function GroupPage({
     redirect("/login");
   }
 
-  const { data: groupData } = await supabase
-    .from("groups")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (!groupData) {
-    notFound();
-  }
-
-  const [mRes, cRes, bRes, pRes, nRes, rRes, profRes] = await Promise.all([
+  // Execute ALL queries in one single parallel round-trip (eliminates waterfall)
+  const [gRes, mRes, cRes, bRes, pRes, nRes, rRes, profRes] = await Promise.all([
+    supabase.from("groups").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("group_members")
       .select("*")
@@ -74,6 +66,10 @@ export default async function GroupPage({
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
   ]);
 
+  if (!gRes.data) {
+    notFound();
+  }
+
   const members = (mRes.data ?? []) as GroupMember[];
   const myMember = members.find((m) => m.user_id === user.id) ?? null;
   const actorName =
@@ -87,7 +83,7 @@ export default async function GroupPage({
       currentUserId={user.id}
       actorName={actorName}
       myMember={myMember}
-      initialGroup={groupData as Group}
+      initialGroup={gRes.data as Group}
       initialMembers={members}
       initialComponents={(cRes.data ?? []) as ComponentItem[]}
       initialBundles={(bRes.data ?? []) as OrderBundle[]}

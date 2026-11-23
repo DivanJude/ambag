@@ -488,10 +488,16 @@ export default function ComponentsTab({
     }
   };
 
+  const checkedBundleSubtotal = useMemo(() => {
+    return components
+      .filter((c) => checkedForBundle.includes(c.id))
+      .reduce((sum, c) => sum + getComponentTotal(c), 0);
+  }, [components, checkedForBundle]);
+
   const totalColCount = canEdit ? 8 : 6;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-16">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -510,7 +516,7 @@ export default function ComponentsTab({
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
                 filter === key
                   ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                  : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-zinc-200"
+                  : "bg-slate-900/80 text-slate-400 border border-slate-800 hover:text-slate-200"
               }`}
             >
               {label}
@@ -523,12 +529,12 @@ export default function ComponentsTab({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search components..."
-            className="w-full sm:w-52 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+            className="w-full sm:w-52 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
           />
           {canEdit && (
             <button
               onClick={openNewComponentModal}
-              className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold cursor-pointer"
+              className="shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold shadow-sm shadow-emerald-500/20 cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" /> Add Item
             </button>
@@ -536,25 +542,36 @@ export default function ComponentsTab({
         </div>
       </div>
 
-      {/* Floating Bundle Action Bar */}
+      {/* Floating Bottom Bundle Dock — follows user while scrolling so no scrolling back up */}
       {canEdit && checkedForBundle.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-          <div className="flex items-center gap-2 text-xs text-emerald-200">
-            <Layers className="h-4 w-4 text-emerald-400" />
-            <span>
-              <strong className="num">{checkedForBundle.length}</strong> items selected for shop checkout bundle
+        <div className="dock-animate fixed bottom-5 left-1/2 z-40 w-[calc(100%-2rem)] max-w-xl rounded-2xl border border-emerald-500/40 bg-[#121722]/95 backdrop-blur-xl px-4 py-3 shadow-2xl shadow-black/80 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-xs">
+            <span className="h-7 w-7 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+              <Layers className="h-3.5 w-3.5 text-emerald-400" />
             </span>
+            <div>
+              <p className="font-semibold text-white">
+                <span className="num text-emerald-300">{checkedForBundle.length}</span>{" "}
+                item{checkedForBundle.length === 1 ? "" : "s"} selected
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Items subtotal:{" "}
+                <span className="num text-slate-200">
+                  {formatCurrency(checkedBundleSubtotal, currency)}
+                </span>
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCheckedForBundle([])}
-              className="px-3 py-1.5 rounded-lg bg-zinc-900 text-xs text-zinc-300 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-xs text-slate-300 cursor-pointer transition"
             >
               Clear
             </button>
             <button
               onClick={openCreateBundleFromChecked}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold cursor-pointer"
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-semibold shadow-sm shadow-emerald-500/25 cursor-pointer transition"
             >
               <Package className="h-3.5 w-3.5" /> Group into Order Bundle
             </button>
